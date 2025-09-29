@@ -1,4 +1,4 @@
 {
-	"id":   "letraz-server-ts-b8fi",
-	"lang": "typescript"
+	"id": "letraz-server-w3ti",
+	"lang": "typescript",
 }
