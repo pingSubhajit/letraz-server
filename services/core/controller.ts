@@ -1,5 +1,5 @@
 import {appMeta} from 'encore.dev'
-import {api} from 'encore.dev/api'
+import {api, APIError} from 'encore.dev/api'
 import {
 	AddToWaitlistParams,
 	WaitlistResponse,
@@ -8,6 +8,12 @@ import {
 } from '@/services/core/interface'
 import {CoreService} from '@/services/core/service'
 
+/**
+ * Core service health check. Returns the operational status and deployment
+ * metadata for this service instance, including a status indicator,
+ * deployment ID, timestamp, and service name. Publicly exposed at
+ * GET /core/health.
+ */
 export const healthCheck = api({
 	method: 'GET', expose: true, path: '/core/health'
 }, async (): Promise<HealthCheckResponse> => {
@@ -19,6 +25,11 @@ export const healthCheck = api({
 	}
 })
 
+/**
+ * Adds a user to the early access waitlist. Accepts an email and optional
+ * referrer and returns the created waitlist record with queue position and
+ * access status. Publicly exposed at POST /waitlist.
+ */
 export const addToWaitlist = api({
 	method: 'POST', path: '/waitlist', expose: true
 }, async (params: AddToWaitlistParams): Promise<WaitlistResponse> => {
@@ -26,9 +37,9 @@ export const addToWaitlist = api({
 })
 
 /**
- * Retrieves a specific blog post by its unique ID.
- * This function is publicly accessible and fetches the post's data
- * from the database before returning it to the client.
+ * Lists waitlist entries with pagination. Supports page, page_size, and
+ * order (asc|desc). Returns a paginated collection with metadata including
+ * total, has_next, and has_prev. Accessible at GET /waitlist.
  */
 export const getAllWaitlist = api({
 	method: 'GET', path: '/waitlist'

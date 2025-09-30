@@ -1,7 +1,7 @@
 import {Service} from 'encore.dev/service'
 import {middleware} from 'encore.dev/api'
-import {APIError} from 'encore.dev/api'
-import {translateDatabaseError} from '@/shared/errors'
+import {handleError} from '@/services/utils/errors'
+import {v4 as uuidv4} from 'uuid'
 
 export default new Service('core', {
 	middlewares: [
@@ -9,11 +9,7 @@ export default new Service('core', {
 			try {
 				return await next(req)
 			} catch (err) {
-				const translated = translateDatabaseError(err)
-				if (translated instanceof APIError) {
-					throw translated
-				}
-				throw err
+				throw handleError(err, uuidv4())
 			}
 		})
 	]
