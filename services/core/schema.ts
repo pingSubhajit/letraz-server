@@ -1,4 +1,3 @@
-// schema.ts
 import * as p from 'drizzle-orm/pg-core'
 import {relations} from 'drizzle-orm'
 

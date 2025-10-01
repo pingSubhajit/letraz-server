@@ -1,5 +1,3 @@
-// database.ts
-import {api} from 'encore.dev/api'
 import {SQLDatabase} from 'encore.dev/storage/sqldb'
 import {drizzle} from 'drizzle-orm/node-postgres'
 import * as schema from '@/services/core/schema'

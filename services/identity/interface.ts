@@ -1,0 +1,70 @@
+/**
+ * User Interface
+ * Represents a user in the system
+ */
+export interface User {
+	id: string
+	title?: string | null
+	first_name: string
+	last_name?: string | null
+	email: string
+	phone?: string | null
+	dob?: Date | null
+	nationality?: string | null
+	address?: string | null
+	city?: string | null
+	postal?: string | null
+	country_id?: number | null
+	website?: string | null
+	profile_text?: string | null
+	is_active: boolean
+	is_staff: boolean
+	last_login?: Date | null
+	created_at: Date
+	updated_at: Date
+}
+
+/**
+ * Create User Input
+ */
+export interface CreateUserInput {
+	id: string
+	email: string
+	first_name: string
+	last_name?: string | null
+	title?: string | null
+	phone?: string | null
+	dob?: Date | null
+	nationality?: string | null
+	address?: string | null
+	city?: string | null
+	postal?: string | null
+	country_id?: number | null
+	website?: string | null
+	profile_text?: string | null
+	last_login?: Date | null
+}
+
+/**
+ * Update User Input
+ */
+export interface UpdateUserInput {
+	title?: string | null
+	first_name?: string
+	last_name?: string | null
+	email?: string
+	phone?: string | null
+	dob?: Date | null
+	nationality?: string | null
+	address?: string | null
+	city?: string | null
+	postal?: string | null
+	country_id?: number | null
+	website?: string | null
+	profile_text?: string | null
+	is_active?: boolean
+	is_staff?: boolean
+	last_login?: Date | null
+}
+
+export interface UserCreatedEvent extends User {}

@@ -1,10 +1,12 @@
 import {appMeta} from 'encore.dev'
-import {api, APIError} from 'encore.dev/api'
+import {api} from 'encore.dev/api'
 import {
 	AddToWaitlistParams,
-	WaitlistResponse,
+	AllWaitlistParams,
+	AllWaitlistResponse,
 	HealthCheckResponse,
-	AllWaitlistResponse, AllWaitlistParams
+	RemoveFromWaitlistParams,
+	WaitlistResponse
 } from '@/services/core/interface'
 import {CoreService} from '@/services/core/service'
 
@@ -15,7 +17,7 @@ import {CoreService} from '@/services/core/service'
  * GET /core/health.
  */
 export const healthCheck = api({
-	method: 'GET', expose: true, path: '/core/health'
+	method: 'GET', path: '/core/health', expose: true
 }, async (): Promise<HealthCheckResponse> => {
 	return {
 		status: 'OPERATIONAL',
@@ -45,4 +47,14 @@ export const getAllWaitlist = api({
 	method: 'GET', path: '/waitlist'
 }, async (params: AllWaitlistParams): Promise<AllWaitlistResponse> => {
 	return CoreService.getAllWaitlist(params)
+})
+
+/**
+ * Removes a user from the waitlist. Accepts an email and returns a success message.
+ * Publicly exposed at DELETE /waitlist/:email.
+ */
+export const removeFromWaitlist = api({
+	method: 'DELETE', path: '/waitlist/:email'
+}, async ({email}: RemoveFromWaitlistParams): Promise<void> => {
+	return CoreService.removeFromWaitlist(email)
 })

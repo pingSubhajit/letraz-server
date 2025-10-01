@@ -2,7 +2,7 @@ import {AddToWaitlistParams, AllWaitlistParams, AllWaitlistResponse, WaitlistRes
 import {db} from '@/services/core/database'
 import {waitlist} from '@/services/core/schema'
 import {waitlistSubmitted} from '@/services/core/topics'
-import {asc, count, desc, gt, lt} from 'drizzle-orm'
+import {asc, count, desc, eq} from 'drizzle-orm'
 
 export const CoreService = {
 	addToWaitlist: async ({email, referrer}: AddToWaitlistParams): Promise<WaitlistResponse> => {
@@ -45,5 +45,8 @@ export const CoreService = {
 			has_next,
 			has_prev
 		}
+	},
+	removeFromWaitlist: async (email: string): Promise<void> => {
+		await db.delete(waitlist).where(eq(waitlist.email, email))
 	}
 }

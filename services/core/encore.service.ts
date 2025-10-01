@@ -1,16 +1,11 @@
 import {Service} from 'encore.dev/service'
-import {middleware} from 'encore.dev/api'
-import {handleError} from '@/services/utils/errors'
-import {v4 as uuidv4} from 'uuid'
+import {errorHandlingMiddleware} from '@/services/utils/middleware'
 
+/**
+ * Core Service
+ * Uses shared error handling middleware from services/utils/middleware.ts
+ * Authentication is handled globally via the gateway in services/utils/gateway.ts
+ */
 export default new Service('core', {
-	middlewares: [
-		middleware({}, async (req, next) => {
-			try {
-				return await next(req)
-			} catch (err) {
-				throw handleError(err, uuidv4())
-			}
-		})
-	]
+	middlewares: [errorHandlingMiddleware]
 })

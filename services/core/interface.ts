@@ -1,4 +1,5 @@
 import {IsEmail} from 'encore.dev/validate'
+import {PaginatedResponse, PaginationParams} from '@/services/utils/pagination'
 
 /**
  * Health check response payload returned by GET /core/health.
@@ -46,11 +47,7 @@ export interface WaitlistResponse {
 /**
  * Query parameters for listing waitlist entries.
  */
-export interface AllWaitlistParams {
-	/** Page size (number of items per page). */
-	page_size?: number
-	/** 1-based page index. */
-	page?: number
+export interface AllWaitlistParams extends PaginationParams {
 	/** Sort order for results by creation time. */
 	order?: 'asc' | 'desc'
 }
@@ -58,17 +55,19 @@ export interface AllWaitlistParams {
 /**
  * Paginated list response for waitlist entries.
  */
-export interface AllWaitlistResponse {
-	/** Waitlist entries for the requested page. */
-	data: WaitlistResponse[]
-	/** Current page index. */
-	page: number
-	/** Page size used when fetching results. */
-	page_size: number
-	/** Total number of entries available. */
-	total: number
-	/** Whether there is a subsequent page. */
-	has_next: boolean
-	/** Whether there is a previous page. */
-	has_prev: boolean
+export interface AllWaitlistResponse extends PaginatedResponse<WaitlistResponse[]> {}
+
+/**
+ * Event payload for waitlist deletion.
+ */
+export interface RemoveFromWaitlistParams {
+	/** Email address of the user to remove from the waitlist. */
+	email: string
+}
+
+
+export interface WaitlistSubmittedEvent {
+	email: string
+	referrer?: string | null
+	submittedAt: string
 }
