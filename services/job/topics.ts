@@ -25,6 +25,7 @@ export const jobScrapeTriggered = new Topic<JobScrapeTriggeredEvent>('job-scrape
  */
 export interface JobScrapeFailedEvent {
 	job_id: string;
+	job_url?: string;
 	process_id: string;
 	error_message: string;
 	failed_at: Date;
@@ -34,6 +35,24 @@ export interface JobScrapeFailedEvent {
  * Job Scrape Failed Topic
  */
 export const jobScrapeFailed = new Topic<JobScrapeFailedEvent>('job-scrape-failed', {
+	deliveryGuarantee: 'at-least-once'
+})
+
+/**
+ * Job Scrape Success Event
+ * Published when a job scraping process completes successfully
+ */
+export interface JobScrapeSuccessEvent {
+	job_id: string;
+	process_id: string;
+	job_url?: string;
+	completed_at: Date;
+}
+
+/**
+ * Job Scrape Success Topic
+ */
+export const jobScrapeSuccess = new Topic<JobScrapeSuccessEvent>('job-scrape-success', {
 	deliveryGuarantee: 'at-least-once'
 })
 

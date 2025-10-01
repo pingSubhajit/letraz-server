@@ -1,4 +1,5 @@
 import {JobStatus, ProcessStatus} from '@/services/job/schema'
+import {IsURL, MinLen} from 'encore.dev/validate'
 
 /**
  * Process Interface
@@ -169,7 +170,7 @@ export interface DeleteJobResponse {
  * Parameters for initiating a job scraping process
  */
 export interface ScrapeJobRequest {
-	target?: string;
+	target: string & MinLen<10> & (IsURL | MinLen<300>);
 }
 
 /**
