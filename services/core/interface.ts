@@ -55,7 +55,7 @@ export interface AllWaitlistParams extends PaginationParams {
 /**
  * Paginated list response for waitlist entries.
  */
-export interface AllWaitlistResponse extends PaginatedResponse<WaitlistResponse[]> {}
+export interface AllWaitlistResponse extends PaginatedResponse<WaitlistResponse> {}
 
 /**
  * Event payload for waitlist deletion.

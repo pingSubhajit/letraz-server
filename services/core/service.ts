@@ -13,16 +13,16 @@ export const CoreService = {
 			waiting_number = lastWaitlist.waiting_number + 1
 		}
 
-		const inserted = (await db.insert(waitlist).values({
+		const [waitlistEntry] = (await db.insert(waitlist).values({
 			email, referrer, waiting_number
-		}).returning())[0]
+		}).returning())
 
 		await waitlistSubmitted.publish({
-			email: inserted.email,
-			referrer: inserted.referrer,
-			submittedAt: inserted.created_at instanceof Date ? inserted.created_at.toISOString() : new Date().toISOString()
+			email: waitlistEntry.email,
+			referrer: waitlistEntry.referrer,
+			submittedAt: waitlistEntry.created_at instanceof Date ? waitlistEntry.created_at.toISOString() : new Date().toISOString()
 		})
-		return inserted
+		return waitlistEntry
 	},
 	getAllWaitlist: async ({page_size = 50, page, order = 'asc'}: AllWaitlistParams = {}): Promise<AllWaitlistResponse> => {
 		const limit = Math.min(Math.max(page_size, 1), 200)
