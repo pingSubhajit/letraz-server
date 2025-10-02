@@ -1,5 +1,6 @@
 import {api} from 'encore.dev/api'
 import type {
+	AddSkillRequest,
 	DeleteResumeParams,
 	EducationPathParams,
 	EducationResponse,
@@ -10,15 +11,24 @@ import type {
 	ExperienceUpsertRequest,
 	ExperienceWithIdParams,
 	GetResumeParams,
+	GlobalSkillCategoriesResponse,
+	GlobalSkillsResponse,
 	ListEducationsResponse,
 	ListExperiencesResponse,
+	ListProficienciesResponse,
 	ListResumesParams,
 	ListResumesResponse,
-	ResumeResponse
+	ProficiencyResponse,
+	ResumeResponse,
+	SkillCategoriesResponse,
+	SkillPathParams,
+	SkillWithIdParams,
+	UpdateSkillRequest
 } from '@/services/resume/interface'
 import {ResumeService} from '@/services/resume/service'
 import {EducationService} from '@/services/resume/services/education.service'
 import {ExperienceService} from '@/services/resume/services/experience.service'
+import {SkillService} from '@/services/resume/services/skill.service'
 
 /**
  * List all resumes for authenticated user
@@ -176,6 +186,97 @@ export const deleteExperience = api(
 	{method: 'DELETE', path: '/resume/:resume_id/experience/:id', auth: true, expose: true},
 	async ({resume_id, id}: ExperienceWithIdParams): Promise<void> => {
 		await ExperienceService.deleteExperience({resume_id, id})
+	}
+)
+
+/**
+ * ==========================================
+ * SKILL ENDPOINTS
+ * ==========================================
+ */
+
+/**
+ * List all skills/proficiencies for resume
+ * GET /resume/:resume_id/skill
+ */
+export const listSkills = api(
+	{method: 'GET', path: '/resume/:resume_id/skill', auth: true, expose: true},
+	async ({resume_id}: SkillPathParams): Promise<ListProficienciesResponse> => {
+		return SkillService.listSkills({resume_id})
+	}
+)
+
+/**
+ * Add skill to resume
+ * POST /resume/:resume_id/skill
+ */
+export const addSkill = api(
+	{method: 'POST', path: '/resume/:resume_id/skill', auth: true, expose: true},
+	async ({resume_id, ...data}: SkillPathParams & AddSkillRequest): Promise<ProficiencyResponse> => {
+		return SkillService.addSkill({resume_id, ...data})
+	}
+)
+
+/**
+ * Update skill proficiency
+ * PATCH /resume/:resume_id/skill/:id
+ */
+export const updateSkill = api(
+	{method: 'PATCH', path: '/resume/:resume_id/skill/:id', auth: true, expose: true},
+	async ({resume_id, id, ...data}: SkillWithIdParams & UpdateSkillRequest): Promise<ProficiencyResponse> => {
+		return SkillService.updateSkill({resume_id, id, ...data})
+	}
+)
+
+/**
+ * Remove skill from resume
+ * DELETE /resume/:resume_id/skill/:id
+ */
+export const removeSkill = api(
+	{method: 'DELETE', path: '/resume/:resume_id/skill/:id', auth: true, expose: true},
+	async ({resume_id, id}: SkillWithIdParams): Promise<void> => {
+		await SkillService.removeSkill({resume_id, id})
+	}
+)
+
+/**
+ * Get unique skill categories for resume
+ * GET /resume/:resume_id/skill/categories
+ */
+export const getSkillCategories = api(
+	{method: 'GET', path: '/resume/:resume_id/skill/categories', auth: true, expose: true},
+	async ({resume_id}: SkillPathParams): Promise<SkillCategoriesResponse> => {
+		return SkillService.getCategories({resume_id})
+	}
+)
+
+/**
+ * ==========================================
+ * GLOBAL SKILL ENDPOINTS
+ * ==========================================
+ */
+
+/**
+ * Get all skills in the system
+ * GET /skills
+ * Useful for autocomplete/suggestions when adding skills
+ */
+export const getAllSkills = api(
+	{method: 'GET', path: '/skills', auth: true, expose: true},
+	async (): Promise<GlobalSkillsResponse> => {
+		return SkillService.getAllSkills()
+	}
+)
+
+/**
+ * Get all unique skill categories in the system
+ * GET /skills/categories
+ * Useful for category filtering and autocomplete
+ */
+export const getAllSkillCategories = api(
+	{method: 'GET', path: '/skills/categories', auth: true, expose: true},
+	async (): Promise<GlobalSkillCategoriesResponse> => {
+		return SkillService.getAllCategories()
 	}
 )
 

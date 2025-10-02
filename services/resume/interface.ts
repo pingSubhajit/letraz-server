@@ -181,16 +181,6 @@ export interface Proficiency {
  */
 
 /**
- * Proficiency with Skill Details
- */
-export interface ProficiencyWithSkill {
-	id: string
-	skill: Skill
-	level: ProficiencyLevel | null
-	resume_section_id: string
-}
-
-/**
  * Project with Skills
  */
 export interface ProjectWithSkills extends Omit<Project, 'created_at' | 'updated_at'> {
@@ -571,20 +561,6 @@ export interface ListExperiencesResponse {
 }
 
 /**
- * Skill Response (Single)
- */
-export interface SkillResponse {
-	proficiency: ProficiencyWithSkill
-}
-
-/**
- * Skill List Response
- */
-export interface ListSkillsResponse {
-	skills: ProficiencyWithSkill[]
-}
-
-/**
  * Skill Categories Response
  */
 export interface SkillCategoriesResponse {
@@ -617,4 +593,119 @@ export interface CertificationResponse {
  */
 export interface ListCertificationsResponse {
 	certifications: Certification[]
+}
+
+/**
+ * ==========================================
+ * SKILL & PROFICIENCY TYPES
+ * ==========================================
+ */
+
+/**
+ * Base Skill interface
+ * Skills are shared resources across all resumes
+ */
+export interface Skill {
+	/** Unique skill ID */
+	id: string
+	/** Skill category (e.g., 'Programming', 'Design', 'Languages') */
+	category: string | null
+	/** Skill name (e.g., 'TypeScript', 'Figma', 'Spanish') */
+	name: string
+	/** Whether this skill is preferred/featured */
+	preferred: boolean
+	/** Timestamps */
+	created_at: Date
+	updated_at: Date
+}
+
+/**
+ * Proficiency with full skill details
+ * Used for read operations
+ */
+export interface ProficiencyWithSkill {
+	/** Proficiency record ID */
+	id: string
+	/** Full skill details */
+	skill: Skill
+	/** Proficiency level (optional) */
+	level: ProficiencyLevel | null
+}
+
+/**
+ * Request to add a skill to resume
+ */
+export interface AddSkillRequest {
+	/** Skill name (required) */
+	name: string
+	/** Skill category (optional) */
+	category?: string | null
+	/** Proficiency level (optional) - validated against ProficiencyLevel enum */
+	level?: string | null
+}
+
+/**
+ * Request to update skill proficiency
+ * Partial update - all fields optional
+ */
+export interface UpdateSkillRequest {
+	/** Updated skill name */
+	name?: string
+	/** Updated skill category */
+	category?: string | null
+	/** Updated proficiency level - validated against ProficiencyLevel enum */
+	level?: string | null
+}
+
+/**
+ * Path parameters for skill endpoints
+ */
+export interface SkillPathParams {
+	/** Resume ID or 'base' */
+	resume_id: string
+}
+
+/**
+ * Path parameters for specific skill operations
+ */
+export interface SkillWithIdParams extends SkillPathParams {
+	/** Proficiency ID */
+	id: string
+}
+
+/**
+ * Single proficiency response
+ */
+export interface ProficiencyResponse {
+	proficiency: ProficiencyWithSkill
+}
+
+/**
+ * List of proficiencies response
+ */
+export interface ListProficienciesResponse {
+	proficiencies: ProficiencyWithSkill[]
+}
+
+/**
+ * Skill categories response
+ */
+export interface SkillCategoriesResponse {
+	categories: string[]
+}
+
+/**
+ * Global skills list response
+ * Returns all skills in the system (not resume-specific)
+ */
+export interface GlobalSkillsResponse {
+	skills: Skill[]
+}
+
+/**
+ * Global skill categories response
+ * Returns all unique categories from all skills
+ */
+export interface GlobalSkillCategoriesResponse {
+	categories: string[]
 }
