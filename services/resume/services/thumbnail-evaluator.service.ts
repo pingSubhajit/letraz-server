@@ -127,6 +127,7 @@ export const ThumbnailEvaluatorService = {
 	/**
 	 * Trigger thumbnail generation
 	 * Publishes thumbnailGenerationTriggered event
+	 * Generates a unique process ID for event tracking (not stored in database)
 	 *
 	 * @param event - Original resume updated event
 	 * @param score - Calculated significance score

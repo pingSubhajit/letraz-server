@@ -8,11 +8,13 @@ import {
 	resumeTailoringFailed,
 	resumeTailoringSuccess,
 	resumeTailoringTriggered,
-	resumeUpdated
+	resumeUpdated,
+	thumbnailGenerationTriggered
 } from '@/services/resume/topics'
 import {BulkReplaceService} from '@/services/resume/services/bulk-replace.service'
 import {and, eq} from 'drizzle-orm'
 import {ThumbnailEvaluatorService} from './services/thumbnail-evaluator.service'
+import {resumeThumbnails} from '@/services/resume/storage'
 
 /**
  * User Created Event Listener
@@ -369,5 +371,86 @@ const resumeUpdatedListener = new Subscription(resumeUpdated, 'thumbnail-evaluat
 		await ThumbnailEvaluatorService.processResumeUpdate(event)
 	}
 })
+
+/**
+ * Thumbnail Generation Triggered Listener
+ * Subscribes to thumbnail generation triggered events and generates thumbnails
+ *
+ * Process:
+ * 1. Receives thumbnailGenerationTriggered event
+ * 2. Fetches dummy image from URL (placeholder for actual thumbnail generation)
+ * 3. Uploads image to resume-thumbnails bucket
+ * 4. Updates resume record with thumbnail URL
+ *
+ * This is a fire-and-forget operation with no process tracking in the database.
+ */
+const thumbnailGenerationTriggeredListener = new Subscription(
+	thumbnailGenerationTriggered,
+	'generate-thumbnail',
+	{
+		handler: async event => {
+			try {
+				log.info('Thumbnail generation started', {
+					resume_id: event.resume_id,
+					user_id: event.user_id,
+					reason: event.reason,
+					change_score: event.change_score
+				})
+
+				/*
+				 * TODO: Replace with actual thumbnail generation service
+				 * For now, fetch a dummy image from placeholder service
+				 */
+				const dummyImageUrl = 'https://images.unsplash.com/photo-1759401091238-ce8b8fe68cb1?q=80&w=1528&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+
+				const response = await fetch(dummyImageUrl)
+				if (!response.ok) {
+					throw new Error(`Failed to fetch dummy image: ${response.statusText}`)
+				}
+
+				// Get image as buffer
+				const imageBuffer = Buffer.from(await response.arrayBuffer())
+
+				// Upload to storage bucket
+				const filename = `${event.resume_id}.png`
+
+				await resumeThumbnails.upload(filename, imageBuffer, {
+					contentType: 'image/png'
+				})
+
+				// Get public URL
+				const thumbnailUrl = resumeThumbnails.publicUrl(filename)
+
+				// Update resume record with thumbnail URL
+				await db
+					.update(resumes)
+					.set({
+						thumbnail: thumbnailUrl
+					})
+					.where(eq(resumes.id, event.resume_id))
+
+				log.info('Thumbnail generation completed successfully', {
+					resume_id: event.resume_id,
+					user_id: event.user_id,
+					thumbnail_url: thumbnailUrl
+				})
+			} catch (err) {
+				const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+
+				log.error(err as Error, 'Thumbnail generation failed', {
+					resume_id: event.resume_id,
+					user_id: event.user_id,
+					reason: event.reason,
+					error: errorMessage
+				})
+
+				/*
+				 * Fire and forget - no database tracking or failure events
+				 * The system will naturally retry on next significant change
+				 */
+			}
+		}
+	}
+)
 
 

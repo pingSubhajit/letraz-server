@@ -15,6 +15,13 @@
       "when": 1759348698484,
       "tag": "0001_heavy_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759422941288,
+      "tag": "0002_spooky_havok",
+      "breakpoints": true
     }
   ]
 }
