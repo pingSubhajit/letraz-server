@@ -36,6 +36,8 @@ import type {
 	SkillCategoriesResponse,
 	SkillPathParams,
 	SkillWithIdParams,
+	TailorResumeRequest,
+	TailorResumeResponse,
 	UpdateSkillRequest
 } from '@/services/resume/interface'
 import {ResumeService} from '@/services/resume/service'
@@ -455,6 +457,38 @@ export const replaceResume = api(
 	{method: 'PUT', path: '/resume/:id', auth: true, expose: true},
 	async ({id, sections}: ReplaceResumeRequest): Promise<ResumeWithSections> => {
 		return BulkReplaceService.replaceResume({id, sections})
+	}
+)
+
+/**
+ * ==========================================
+ * TAILOR RESUME
+ * ==========================================
+ */
+
+/**
+ * Tailor Resume - POST /resume/tailor
+ *
+ * Creates or retrieves a job-specific resume and initiates tailoring process.
+ *
+ * Flow:
+ * 1. Check if resume already exists for this job (URL targets only)
+ * 2. If exists, return existing resume
+ * 3. If not, create new resume + resume process (status: Processing)
+ * 4. Call job.scrapeJob to create/get job (handles job creation + job process)
+ * 5. Link resume to job
+ * 6. Return resume with linked job
+ *
+ * Features:
+ * - Handles both URL and text job descriptions
+ * - Returns existing resume if already tailored for job
+ * - Creates separate process for resume tailoring tracking
+ * - Job service handles job scraping process independently
+ */
+export const tailorResume = api(
+	{method: 'POST', path: '/resume/tailor', auth: true, expose: true},
+	async (params: TailorResumeRequest): Promise<TailorResumeResponse> => {
+		return ResumeService.tailorResume(params)
 	}
 )
 

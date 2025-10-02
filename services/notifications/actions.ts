@@ -3,7 +3,7 @@ import {Subscription} from 'encore.dev/pubsub'
 import {waitlistSubmitted} from '@/services/core/topics'
 import {getKnock} from '@/services/notifications/knock'
 import {userCreated} from '@/services/identity/topics'
-import {jobScrapeFailed} from '@/services/job/topics'
+import {resumeTailoringFailed} from '@/services/resume/topics'
 import {jobs} from '@/services/job/schema'
 import {eq} from 'drizzle-orm'
 import {db as jobDb} from '@/services/job/database'
@@ -50,21 +50,23 @@ const userCreatedEventListener = new Subscription(userCreated, 'add-user-to-knoc
 })
 
 /**
- * Job Scrape Failed Event Listener
- * Triggers Knock workflow to notify user about failed job scraping
+ * Resume Tailoring Failed Event Listener
+ * Triggers Knock workflow to notify user about failed resume tailoring
+ * This is what the user actually initiated, so it's the right event to notify on
  */
-const jobScrapeFailedEventListener = new Subscription(jobScrapeFailed, 'notify-job-scrape-failed', {
+const resumeTailoringFailedEventListener = new Subscription(resumeTailoringFailed, 'notify-resume-tailoring-failed', {
 	handler: async (event) => {
 		const knock = getKnock()
 		if (!knock) {
-			log.warn('Knock not configured; dropping job-scrape-failed event', {
-				job_id: event.job_id
+			log.warn('Knock not configured; dropping resume-tailoring-failed event', {
+				resume_id: event.resume_id,
+				user_id: event.user_id
 			})
 			return
 		}
 
 		try {
-			// Fetch the job to get additional details
+			// Fetch the job to get additional context for the notification
 			const [job] = await jobDb
 				.select()
 				.from(jobs)
@@ -72,40 +74,38 @@ const jobScrapeFailedEventListener = new Subscription(jobScrapeFailed, 'notify-j
 				.limit(1)
 
 			if (!job) {
-				log.error(new Error('Job not found'), 'Cannot send notification for job-scrape-failed', {
-					job_id: event.job_id
+				log.error(new Error('Job not found'), 'Cannot send notification for resume-tailoring-failed', {
+					job_id: event.job_id,
+					resume_id: event.resume_id
 				})
 				return
 			}
 
-			/*
-			 * TODO: Add user_id field to jobs table to track job ownership
-			 * For now, using job_id as a placeholder - this needs to be replaced
-			 * with actual user_id once user tracking is implemented on jobs
-			 */
-			const userId = event.job_id // TODO: Replace with actual user_id
-
 			await knock.workflows.trigger(KnockWorkflows.JOB_SCRAPE_FAILED, {
-				recipients: [userId],
+				recipients: [event.user_id],
 				data: {
+					resume_id: event.resume_id,
 					process_id: event.process_id,
 					reason: event.error_message,
 					cta_url: `${CLIENT_URL}/app?input=true`,
 					job_title: job.title !== '<EXTRACTION_FAILED>' ? job.title : null,
 					company_name: job.company_name !== '<EXTRACTION_FAILED>' ? job.company_name : null,
-					job_url: event.job_url || null
+					failed_at: event.failed_at.toISOString()
 				}
 			})
 
-			log.info('Job scrape failed notification sent', {
+			log.info('Resume tailoring failed notification sent', {
+				resume_id: event.resume_id,
 				job_id: event.job_id,
 				process_id: event.process_id,
-				user_id: userId
+				user_id: event.user_id
 			})
 		} catch (err) {
-			log.error(err as Error, 'Failed to send job-scrape-failed notification', {
+			log.error(err as Error, 'Failed to send resume-tailoring-failed notification', {
+				resume_id: event.resume_id,
 				job_id: event.job_id,
-				process_id: event.process_id
+				process_id: event.process_id,
+				user_id: event.user_id
 			})
 		}
 	}

@@ -5,12 +5,15 @@ import {
 	certifications,
 	educations,
 	experiences,
+	ProcessStatus,
 	proficiencies,
 	projects,
 	projectSkills,
+	resumeProcesses,
 	resumes,
 	resumeSections,
 	ResumeSectionType,
+	ResumeStatus,
 	skills
 } from '@/services/resume/schema'
 import {
@@ -19,13 +22,18 @@ import {
 	ListResumesParams,
 	ListResumesResponse,
 	RearrangeSectionsRequest,
-	ResumeWithSections
+	ResumeWithSections,
+	TailorResumeRequest,
+	TailorResumeResponse
 } from '@/services/resume/interface'
 import type {Country} from '@/services/core/interface'
 import {AuthData} from '@/services/identity/auth'
 import {IdentityService} from '@/services/identity/service'
 import {and, count, desc, eq, inArray, max} from 'drizzle-orm'
 import {core, job} from '~encore/clients'
+import {resumeTailoringTriggered} from '@/services/resume/topics'
+import {JobStatus} from '@/services/job/schema'
+import log from 'encore.dev/log'
 
 /**
  * Resume Service
@@ -206,7 +214,7 @@ export const ResumeService = {
 
 		// Collect all unique country codes
 		const countryCodes: string[] = []
-		allSectionData.forEach((data, idx) => {
+		allSectionData.forEach((data) => {
 			if (data.length > 0) {
 				const item = data[0]
 				if ('country_code' in item && item.country_code) {
@@ -479,8 +487,7 @@ export const ResumeService = {
 	 */
 	lookupCountry: async (code: string) => {
 		try {
-			const country = await core.getCountry({code})
-			return country
+			return await core.getCountry({code})
 		} catch (err) {
 			throw APIError.invalidArgument(`Invalid country code: ${code}`)
 		}
@@ -591,6 +598,106 @@ export const ResumeService = {
 
 		// Return updated resume with sections
 		return ResumeService.getResumeById({id: resumeId})
+	},
+
+	/**
+	 * Tailor resume for a job
+	 * Creates or retrieves a job-specific resume and initiates tailoring process
+	 */
+	async tailorResume({target}: TailorResumeRequest): Promise<TailorResumeResponse> {
+		const userId = this.getAuthenticatedUserId()
+
+		// Validate target
+		if (!target || target.trim().length < 10) {
+			throw APIError.invalidArgument('Target must be at least 10 characters')
+		}
+
+		// Detect if target is a URL
+		const isUrl = /^https?:\/\//i.test(target.trim())
+		const jobUrl = isUrl ? target.trim() : undefined
+
+		// Call scrapeJob to create/get the job (handles deduplication internally)
+		const {job: scrapedJob} = await job.scrapeJob({target})
+
+		// Check if resume already exists for this user + job
+		const existingResumeQuery = await db
+			.select()
+			.from(resumes)
+			.where(and(eq(resumes.user_id, userId), eq(resumes.job_id, scrapedJob.id)))
+			.limit(1)
+
+		if (existingResumeQuery.length > 0) {
+			// Resume already exists - return it (no event)
+			const fullResume = await this.getResumeById({id: existingResumeQuery[0].id})
+			return {
+				resume: fullResume
+			}
+		}
+
+		// Create a new resume process for tracking tailoring
+		const [resumeProcess] = await db
+			.insert(resumeProcesses)
+			.values({
+				desc: 'Tailoring resume for job',
+				status: ProcessStatus.Initiated,
+				status_details: null
+			})
+			.returning()
+
+		// Create a new non-base resume linked to the job
+		const [newResume] = await db
+			.insert(resumes)
+			.values({
+				user_id: userId,
+				base: false,
+				job_id: scrapedJob.id,
+				status: ResumeStatus.Processing,
+				process_id: resumeProcess.id
+			})
+			.returning()
+
+		// Only publish tailoring triggered event if job scraping already succeeded
+		if (scrapedJob.status === JobStatus.Success) {
+			try {
+				await resumeTailoringTriggered.publish({
+					resume_id: newResume.id,
+					job_id: scrapedJob.id,
+					process_id: resumeProcess.id,
+					user_id: userId,
+					job_url: jobUrl,
+					triggered_at: new Date()
+				})
+
+				log.info('Resume tailoring triggered event published (job ready)', {
+					resume_id: newResume.id,
+					job_id: scrapedJob.id,
+					user_id: userId
+				})
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+				log.error('Failed to publish resume tailoring triggered event', {
+					resume_id: newResume.id,
+					job_id: scrapedJob.id,
+					user_id: userId,
+					error: errorMessage
+				})
+			}
+		} else {
+			// Job is still processing - event will be published when job scraping succeeds
+			log.info('Resume created, waiting for job scraping to complete', {
+				resume_id: newResume.id,
+				job_id: scrapedJob.id,
+				job_status: scrapedJob.status,
+				user_id: userId
+			})
+		}
+
+		// Get the full resume with sections
+		const fullResume = await this.getResumeById({id: newResume.id})
+
+		return {
+			resume: fullResume
+		}
 	}
 
 }

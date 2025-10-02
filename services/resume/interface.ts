@@ -6,7 +6,7 @@ import {
 	ResumeStatus
 } from '@/services/resume/schema'
 import {PaginatedResponse, PaginationParams} from '@/services/utils/pagination'
-import {IsURL, Max, Min} from 'encore.dev/validate'
+import {IsURL, Max, Min, MinLen} from 'encore.dev/validate'
 import type {User} from '@/services/identity/interface'
 import type {Job} from '@/services/job/interface'
 
@@ -539,6 +539,14 @@ export interface ReplaceResumeRequest {
 }
 
 /**
+ * Tailor Resume Request
+ */
+export interface TailorResumeRequest {
+	/** Target URL or job description text */
+	target: string & MinLen<10> & (IsURL | MinLen<300>);
+}
+
+/**
  * ==========================================
  * RESPONSE INTERFACES
  * ==========================================
@@ -617,6 +625,13 @@ export interface CertificationResponse {
  */
 export interface ListCertificationsResponse {
 	certifications: Certification[]
+}
+
+/**
+ * Tailor Resume Response
+ */
+export interface TailorResumeResponse {
+	resume: ResumeWithSections
 }
 
 /**
