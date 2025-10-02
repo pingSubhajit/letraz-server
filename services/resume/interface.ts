@@ -148,17 +148,14 @@ export interface Project {
 
 /**
  * Certification Interface
+ * Clean response without internal fields
  */
 export interface Certification {
 	id: string
-	user_id: string
-	resume_section_id: string
 	name: string
 	issuing_organization: string | null
 	issue_date: Date | null
 	credential_url: string | null
-	created_at: Date
-	updated_at: Date
 }
 
 /**
@@ -493,11 +490,18 @@ export interface CertificationUpsertRequest {
 }
 
 /**
- * Certification Query Params
+ * Certification Path Parameters (resume_id only)
  */
-export interface CertificationParams {
+export interface CertificationPathParams {
 	resume_id: string
-	id?: string
+}
+
+/**
+ * Certification Path Parameters with ID (resume_id + id)
+ */
+export interface CertificationWithIdParams {
+	resume_id: string
+	id: string
 }
 
 /**

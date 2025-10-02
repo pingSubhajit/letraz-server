@@ -1,6 +1,10 @@
 import {api} from 'encore.dev/api'
 import type {
 	AddSkillRequest,
+	CertificationPathParams,
+	CertificationResponse,
+	CertificationUpsertRequest,
+	CertificationWithIdParams,
 	DeleteResumeParams,
 	EducationPathParams,
 	EducationResponse,
@@ -13,6 +17,7 @@ import type {
 	GetResumeParams,
 	GlobalSkillCategoriesResponse,
 	GlobalSkillsResponse,
+	ListCertificationsResponse,
 	ListEducationsResponse,
 	ListExperiencesResponse,
 	ListProficienciesResponse,
@@ -35,6 +40,7 @@ import {EducationService} from '@/services/resume/services/education.service'
 import {ExperienceService} from '@/services/resume/services/experience.service'
 import {SkillService} from '@/services/resume/services/skill.service'
 import {ProjectService} from '@/services/resume/services/project.service'
+import {CertificationService} from '@/services/resume/services/certification.service'
 
 /**
  * List all resumes for authenticated user
@@ -344,6 +350,71 @@ export const deleteProject = api(
 	{method: 'DELETE', path: '/resume/:resume_id/project/:id', auth: true, expose: true},
 	async ({resume_id, id}: ProjectWithIdParams): Promise<void> => {
 		await ProjectService.deleteProject({resume_id, id})
+	}
+)
+
+/**
+ * ==========================================
+ * CERTIFICATION ENDPOINTS
+ * ==========================================
+ */
+
+/**
+ * List all certifications for resume
+ * GET /resume/:resume_id/certification
+ */
+export const listCertifications = api(
+	{method: 'GET', path: '/resume/:resume_id/certification', auth: true, expose: true},
+	async ({resume_id}: CertificationPathParams): Promise<ListCertificationsResponse> => {
+		return CertificationService.listCertifications({resume_id})
+	}
+)
+
+/**
+ * Get specific certification
+ * GET /resume/:resume_id/certification/:id
+ */
+export const getCertification = api(
+	{method: 'GET', path: '/resume/:resume_id/certification/:id', auth: true, expose: true},
+	async ({resume_id, id}: CertificationWithIdParams): Promise<CertificationResponse> => {
+		return CertificationService.getCertificationById({resume_id, id})
+	}
+)
+
+/**
+ * Create certification
+ * POST /resume/:resume_id/certification
+ */
+export const createCertification = api(
+	{method: 'POST', path: '/resume/:resume_id/certification', auth: true, expose: true},
+	async ({resume_id, ...data}: CertificationPathParams & CertificationUpsertRequest): Promise<CertificationResponse> => {
+		return CertificationService.createCertification({resume_id, ...data})
+	}
+)
+
+/**
+ * Update certification
+ * PATCH /resume/:resume_id/certification/:id
+ */
+export const updateCertification = api(
+	{method: 'PATCH', path: '/resume/:resume_id/certification/:id', auth: true, expose: true},
+	async ({
+		resume_id,
+		id,
+		...data
+	}: CertificationWithIdParams & CertificationUpsertRequest): Promise<CertificationResponse> => {
+		return CertificationService.updateCertification({resume_id, id, ...data})
+	}
+)
+
+/**
+ * Delete certification
+ * DELETE /resume/:resume_id/certification/:id
+ */
+export const deleteCertification = api(
+	{method: 'DELETE', path: '/resume/:resume_id/certification/:id', auth: true, expose: true},
+	async ({resume_id, id}: CertificationWithIdParams): Promise<void> => {
+		await CertificationService.deleteCertification({resume_id, id})
 	}
 )
 
