@@ -338,7 +338,7 @@ export const ResumeService = {
 	/**
 	 * Create a new section for a resume with auto-incremented index
 	 */
-	async createSectionForResume(resumeId: string, type: ResumeSectionType): Promise<string> {
+	createSectionForResume: async (resumeId: string, type: ResumeSectionType): Promise<string> => {
 		// Get the max index for this resume
 		const maxIndexQuery = await db
 			.select({maxIndex: max(resumeSections.index)})
@@ -363,7 +363,7 @@ export const ResumeService = {
 	/**
 	 * Validate UUID format
 	 */
-	validateUUID(id: string, fieldName: string = 'ID'): void {
+	validateUUID: (id: string, fieldName: string = 'ID'): void => {
 		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 		if (!uuidRegex.test(id)) {
 			throw APIError.notFound(`${fieldName} '${id}' not found`)
@@ -373,7 +373,7 @@ export const ResumeService = {
 	/**
 	 * Validate date range values
 	 */
-	validateDateRange(month?: number | null, year?: number | null): void {
+	validateDateRange: (month?: number | null, year?: number | null): void => {
 		if (month !== null && month !== undefined) {
 			if (month < 1 || month > 12) {
 				throw APIError.invalidArgument('Month must be between 1 and 12')
@@ -390,7 +390,7 @@ export const ResumeService = {
 	 * Lookup country via core service
 	 * Returns country data or throws error if not found
 	 */
-	async lookupCountry(code: string) {
+	lookupCountry: async (code: string) => {
 		try {
 			const country = await core.getCountry({code})
 			return country
@@ -403,7 +403,7 @@ export const ResumeService = {
 	 * Batch lookup countries
 	 * Fetches multiple countries in parallel and returns a map
 	 */
-	async batchLookupCountries(codes: string[]): Promise<Map<string, Country>> {
+	batchLookupCountries: async (codes: string[]): Promise<Map<string, Country>> => {
 		const uniqueCodes = Array.from(new Set(codes.filter(code => code)))
 		const countryMap = new Map<string, Country>()
 
@@ -424,7 +424,7 @@ export const ResumeService = {
 	/**
 	 * Fetch user data from identity service
 	 */
-	async fetchUserData(userId: string) {
+	fetchUserData: async (userId: string) => {
 		const user = await IdentityService.getUserById(userId)
 		if (!user) {
 			throw APIError.internal(`User ${userId} not found`)
@@ -435,7 +435,7 @@ export const ResumeService = {
 	/**
 	 * Fetch job data from job service
 	 */
-	async fetchJobData(jobId: string) {
+	fetchJobData: async (jobId: string) => {
 		try {
 			const jobData = await job.getJob({id: jobId})
 			return jobData.job
