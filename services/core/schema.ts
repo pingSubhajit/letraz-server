@@ -20,4 +20,19 @@ const waitlist = p.pgTable('waitlist', {
 // Define empty relations to enable typed orm.query API
 const waitlistRelations = relations(waitlist, () => ({}))
 
-export {waitlist, waitlistRelations}
+/**
+ * Countries Table
+ * Stores country information for use across services
+ * Reference data for user profiles, job locations, education, experience, etc.
+ */
+const countries = p.pgTable('countries', {
+	// ISO 3166-1 alpha-3 code as primary key
+	code: p.varchar('code', {length: 3}).primaryKey(),
+	// Country name
+	name: p.varchar('name', {length: 250}).notNull()
+})
+
+// Define empty relations for countries
+const countriesRelations = relations(countries, () => ({}))
+
+export {waitlist, waitlistRelations, countries, countriesRelations}

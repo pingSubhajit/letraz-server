@@ -4,7 +4,12 @@ import {
 	AddToWaitlistParams,
 	AllWaitlistParams,
 	AllWaitlistResponse,
+	Country,
+	CreateCountryParams,
+	GetCountryParams,
 	HealthCheckResponse,
+	ListCountriesParams,
+	ListCountriesResponse,
 	RemoveFromWaitlistParams,
 	WaitlistResponse
 } from '@/services/core/interface'
@@ -57,4 +62,38 @@ export const removeFromWaitlist = api({
 	method: 'DELETE', path: '/waitlist/:email'
 }, async ({email}: RemoveFromWaitlistParams): Promise<void> => {
 	return CoreService.removeFromWaitlist(email)
+})
+
+/**
+ * Get a country by its ISO 3166-1 alpha-3 code.
+ * Internal API for use by other services.
+ * Accessible at GET /core/country/:code
+ */
+export const getCountry = api({
+	method: 'GET', path: '/core/country/:code'
+}, async ({code}: GetCountryParams): Promise<Country> => {
+	return CoreService.getCountry(code)
+})
+
+/**
+ * List countries with pagination and optional search.
+ * Supports page, page_size, and search query parameters.
+ * Internal API for use by other services.
+ * Accessible at GET /core/countries
+ */
+export const listCountries = api({
+	method: 'GET', path: '/core/countries'
+}, async (params: ListCountriesParams): Promise<ListCountriesResponse> => {
+	return CoreService.listCountries(params)
+})
+
+/**
+ * Create a new country (internal/admin only).
+ * Internal API for administrative purposes.
+ * Accessible at POST /core/country
+ */
+export const createCountry = api({
+	method: 'POST', path: '/core/country'
+}, async (params: CreateCountryParams): Promise<Country> => {
+	return CoreService.createCountry(params)
 })

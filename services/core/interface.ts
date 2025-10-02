@@ -71,3 +71,44 @@ export interface WaitlistSubmittedEvent {
 	referrer?: string | null
 	submittedAt: string
 }
+
+/**
+ * Country object representing a country in the system
+ */
+export interface Country {
+	/** ISO 3166-1 alpha-3 code (e.g., 'USA', 'GBR', 'IND') */
+	code: string
+	/** Full country name */
+	name: string
+}
+
+/**
+ * Request parameters for creating a country
+ */
+export interface CreateCountryParams {
+	/** ISO 3166-1 alpha-3 code */
+	code: string
+	/** Full country name */
+	name: string
+}
+
+/**
+ * Request parameters for getting a country by code
+ */
+export interface GetCountryParams {
+	/** ISO 3166-1 alpha-3 code */
+	code: string
+}
+
+/**
+ * Query parameters for listing countries
+ */
+export interface ListCountriesParams extends PaginationParams {
+	/** Search query to filter countries by name */
+	search?: string
+}
+
+/**
+ * Paginated list response for countries
+ */
+export interface ListCountriesResponse extends PaginatedResponse<Country> {}

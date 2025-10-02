@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "unique_base_resume" ON "resumes" USING btree ("user_id") WHERE "resumes"."base" = true;
