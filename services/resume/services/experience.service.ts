@@ -31,31 +31,30 @@ export const ExperienceService = {
 			.where(and(eq(resumeSections.resume_id, resumeId), eq(resumeSections.type, ResumeSectionType.Experience)))
 			.orderBy(resumeSections.index)
 
-		// Get experience data for each section
-		const experiencesData = await Promise.all(
-			sections.map(async section => {
-				const expQuery = await db
-					.select()
-					.from(experiences)
-					.where(eq(experiences.resume_section_id, section.id))
-					.limit(1)
+		// Fetch all experience data in parallel
+		const experienceQueries = await Promise.all(
+			sections.map(section => db.select().from(experiences).where(eq(experiences.resume_section_id, section.id)).limit(1))
+		)
 
-				if (expQuery.length === 0) return null
+		// Collect all unique country codes
+		const countryCodes: string[] = []
+		experienceQueries.forEach(expQuery => {
+			if (expQuery.length > 0 && expQuery[0].country_code) {
+				countryCodes.push(expQuery[0].country_code)
+			}
+		})
 
+		// Batch lookup all countries
+		const countryMap = await ResumeService.batchLookupCountries(countryCodes)
+
+		// Build experience list with country data
+		const validExperiences: ExperienceWithCountry[] = []
+		experienceQueries.forEach(expQuery => {
+			if (expQuery.length > 0) {
 				const exp = expQuery[0]
+				const country = exp.country_code ? countryMap.get(exp.country_code) || null : null
 
-				// Lookup country if present
-				let country = null
-				if (exp.country_code) {
-					try {
-						country = await ResumeService.lookupCountry(exp.country_code)
-					} catch {
-						// Country lookup failed, leave as null
-					}
-				}
-
-				// Return clean data without internal fields
-				return {
+				validExperiences.push({
 					id: exp.id,
 					company_name: exp.company_name,
 					job_title: exp.job_title,
@@ -68,12 +67,9 @@ export const ExperienceService = {
 					finished_at_year: exp.finished_at_year,
 					current: exp.current,
 					description: exp.description
-				}
-			})
-		)
-
-		// Filter out null values
-		const validExperiences = experiencesData.filter((exp): exp is ExperienceWithCountry => exp !== null)
+				})
+			}
+		})
 
 		return {experiences: validExperiences}
 	},

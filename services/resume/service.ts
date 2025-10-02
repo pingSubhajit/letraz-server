@@ -19,6 +19,7 @@ import {
 	ResumeSectionWithData,
 	ResumeWithSections
 } from '@/services/resume/interface'
+import type {Country} from '@/services/core/interface'
 import {AuthData} from '@/services/identity/auth'
 import {IdentityService} from '@/services/identity/service'
 import {and, count, desc, eq, max} from 'drizzle-orm'
@@ -181,125 +182,110 @@ export const ResumeService = {
 			.where(eq(resumeSections.resume_id, resumeId))
 			.orderBy(resumeSections.index)
 
-		// Build sections with nested data
-		const sectionsWithData = await Promise.all(
-			sections.map(async section => {
-				let data = null
+		// Collect all section data first
+		const sectionDataPromises = sections.map(async section => {
+			switch (section.type) {
+				case 'Education':
+					return db.select().from(educations).where(eq(educations.resume_section_id, section.id)).limit(1)
+				case 'Experience':
+					return db.select().from(experiences).where(eq(experiences.resume_section_id, section.id)).limit(1)
+				case 'Project':
+					return db.select().from(projects).where(eq(projects.resume_section_id, section.id)).limit(1)
+				case 'Certification':
+					return db.select().from(certifications).where(eq(certifications.resume_section_id, section.id)).limit(1)
+				case 'Skill':
+					return db.select().from(proficiencies).where(eq(proficiencies.resume_section_id, section.id))
+				default:
+					return []
+			}
+		})
 
+		const allSectionData = await Promise.all(sectionDataPromises)
+
+		// Collect all unique country codes
+		const countryCodes: string[] = []
+		allSectionData.forEach((data, idx) => {
+			if (data.length > 0) {
+				const item = data[0]
+				if ('country_code' in item && item.country_code) {
+					countryCodes.push(item.country_code as string)
+				}
+			}
+		})
+
+		// Batch lookup all countries
+		const countryMap = await this.batchLookupCountries(countryCodes)
+
+		// Build sections with nested data
+		const sectionsWithData = sections.map((section, idx) => {
+			let data = null
+			const sectionData = allSectionData[idx]
+
+			if (sectionData.length > 0) {
 				switch (section.type) {
 					case 'Education': {
-						const eduQuery = await db
-							.select()
-							.from(educations)
-							.where(eq(educations.resume_section_id, section.id))
-							.limit(1)
-						if (eduQuery.length > 0) {
-							const edu = eduQuery[0]
-							// Lookup country if present
-							let country = null
-							if (edu.country_code) {
-								try {
-									country = await this.lookupCountry(edu.country_code)
-								} catch {
-									// Country lookup failed, leave as null
-								}
-							}
-							// Return clean data
-							data = {
-								id: edu.id,
-								institution_name: edu.institution_name,
-								field_of_study: edu.field_of_study,
-								degree: edu.degree,
-								country,
-								started_from_month: edu.started_from_month,
-								started_from_year: edu.started_from_year,
-								finished_at_month: edu.finished_at_month,
-								finished_at_year: edu.finished_at_year,
-								current: edu.current,
-								description: edu.description
-							}
+						const edu = sectionData[0] as any
+						const country = edu.country_code ? countryMap.get(edu.country_code) || null : null
+						data = {
+							id: edu.id,
+							institution_name: edu.institution_name,
+							field_of_study: edu.field_of_study,
+							degree: edu.degree,
+							country,
+							started_from_month: edu.started_from_month,
+							started_from_year: edu.started_from_year,
+							finished_at_month: edu.finished_at_month,
+							finished_at_year: edu.finished_at_year,
+							current: edu.current,
+							description: edu.description
 						}
 						break
 					}
 					case 'Experience': {
-						const expQuery = await db
-							.select()
-							.from(experiences)
-							.where(eq(experiences.resume_section_id, section.id))
-							.limit(1)
-						if (expQuery.length > 0) {
-							const exp = expQuery[0]
-							// Lookup country if present
-							let country = null
-							if (exp.country_code) {
-								try {
-									country = await this.lookupCountry(exp.country_code)
-								} catch {
-									// Country lookup failed, leave as null
-								}
-							}
-							// Return clean data
-							data = {
-								id: exp.id,
-								company_name: exp.company_name,
-								job_title: exp.job_title,
-								employment_type: exp.employment_type,
-								city: exp.city,
-								country,
-								started_from_month: exp.started_from_month,
-								started_from_year: exp.started_from_year,
-								finished_at_month: exp.finished_at_month,
-								finished_at_year: exp.finished_at_year,
-								current: exp.current,
-								description: exp.description
-							}
+						const exp = sectionData[0] as any
+						const country = exp.country_code ? countryMap.get(exp.country_code) || null : null
+						data = {
+							id: exp.id,
+							company_name: exp.company_name,
+							job_title: exp.job_title,
+							employment_type: exp.employment_type,
+							city: exp.city,
+							country,
+							started_from_month: exp.started_from_month,
+							started_from_year: exp.started_from_year,
+							finished_at_month: exp.finished_at_month,
+							finished_at_year: exp.finished_at_year,
+							current: exp.current,
+							description: exp.description
 						}
 						break
 					}
 					case 'Project': {
-						const projQuery = await db
-							.select()
-							.from(projects)
-							.where(eq(projects.resume_section_id, section.id))
-							.limit(1)
-						if (projQuery.length > 0) {
-							const project = projQuery[0]
-							// TODO: Fetch skills_used in Part 4
-							data = {...project, skills_used: []}
-						}
+						const project = sectionData[0] as any
+						// TODO: Fetch skills_used in Part 4
+						data = {...project, skills_used: []}
 						break
 					}
 					case 'Certification': {
-						const certQuery = await db
-							.select()
-							.from(certifications)
-							.where(eq(certifications.resume_section_id, section.id))
-							.limit(1)
-						if (certQuery.length > 0) {
-							data = certQuery[0]
-						}
+						data = sectionData[0]
 						break
 					}
 					case 'Skill': {
-						const profQuery = await db
-							.select()
-							.from(proficiencies)
-							.where(eq(proficiencies.resume_section_id, section.id))
 						// TODO: Join with skills table in Part 4
-						data = {skills: profQuery}
+						data = {skills: sectionData}
 						break
 					}
 				}
+			}
 
-				return {
-					id: section.id,
-					resume_id: section.resume_id,
-					index: section.index,
-					type: section.type,
-					data
-				}
-			})
-		)
+			return {
+				id: section.id,
+				resume_id: section.resume_id,
+				index: section.index,
+				type: section.type,
+				data
+			}
+		})
 
 		return {
 			id: resume.id,
@@ -411,6 +397,28 @@ export const ResumeService = {
 		} catch (err) {
 			throw APIError.invalidArgument(`Invalid country code: ${code}`)
 		}
+	},
+
+	/**
+	 * Batch lookup countries
+	 * Fetches multiple countries in parallel and returns a map
+	 */
+	async batchLookupCountries(codes: string[]): Promise<Map<string, Country>> {
+		const uniqueCodes = Array.from(new Set(codes.filter(code => code)))
+		const countryMap = new Map<string, Country>()
+
+		await Promise.all(
+			uniqueCodes.map(async code => {
+				try {
+					const country = await core.getCountry({code})
+					countryMap.set(code, country)
+				} catch {
+					// Country lookup failed, don't add to map
+				}
+			})
+		)
+
+		return countryMap
 	},
 
 	/**

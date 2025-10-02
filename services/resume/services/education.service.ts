@@ -31,31 +31,30 @@ export const EducationService = {
 			.where(and(eq(resumeSections.resume_id, resumeId), eq(resumeSections.type, ResumeSectionType.Education)))
 			.orderBy(resumeSections.index)
 
-		// Get education data for each section
-		const educationsData = await Promise.all(
-			sections.map(async section => {
-				const eduQuery = await db
-					.select()
-					.from(educations)
-					.where(eq(educations.resume_section_id, section.id))
-					.limit(1)
+		// Fetch all education data in parallel
+		const educationQueries = await Promise.all(
+			sections.map(section => db.select().from(educations).where(eq(educations.resume_section_id, section.id)).limit(1))
+		)
 
-				if (eduQuery.length === 0) return null
+		// Collect all unique country codes
+		const countryCodes: string[] = []
+		educationQueries.forEach(eduQuery => {
+			if (eduQuery.length > 0 && eduQuery[0].country_code) {
+				countryCodes.push(eduQuery[0].country_code)
+			}
+		})
 
+		// Batch lookup all countries
+		const countryMap = await ResumeService.batchLookupCountries(countryCodes)
+
+		// Build education list with country data
+		const validEducations: EducationWithCountry[] = []
+		educationQueries.forEach(eduQuery => {
+			if (eduQuery.length > 0) {
 				const edu = eduQuery[0]
+				const country = edu.country_code ? countryMap.get(edu.country_code) || null : null
 
-				// Lookup country if present
-				let country = null
-				if (edu.country_code) {
-					try {
-						country = await ResumeService.lookupCountry(edu.country_code)
-					} catch {
-						// Country lookup failed, leave as null
-					}
-				}
-
-				// Return clean data without internal fields
-				return {
+				validEducations.push({
 					id: edu.id,
 					institution_name: edu.institution_name,
 					field_of_study: edu.field_of_study,
@@ -67,12 +66,9 @@ export const EducationService = {
 					finished_at_year: edu.finished_at_year,
 					current: edu.current,
 					description: edu.description
-				}
-			})
-		)
-
-		// Filter out null values
-		const validEducations = educationsData.filter((edu): edu is EducationWithCountry => edu !== null)
+				})
+			}
+		})
 
 		return {educations: validEducations}
 	},
