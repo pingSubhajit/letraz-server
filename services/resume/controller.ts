@@ -29,7 +29,9 @@ import type {
 	ProjectResponse,
 	ProjectUpsertRequest,
 	ProjectWithIdParams,
+	RearrangeSectionsRequest,
 	ResumeResponse,
+	ResumeWithSections,
 	SkillCategoriesResponse,
 	SkillPathParams,
 	SkillWithIdParams,
@@ -415,6 +417,21 @@ export const deleteCertification = api(
 	{method: 'DELETE', path: '/resume/:resume_id/certification/:id', auth: true, expose: true},
 	async ({resume_id, id}: CertificationWithIdParams): Promise<void> => {
 		await CertificationService.deleteCertification({resume_id, id})
+	}
+)
+
+/**
+ * Rearrange resume sections
+ * PUT /resume/:id/sections/rearrange
+ *
+ * Uses two-phase update to avoid unique constraint violations:
+ * - Phase 1: Set all sections to negative indices
+ * - Phase 2: Set final positive indices in desired order
+ */
+export const rearrangeSections = api(
+	{method: 'PUT', path: '/resume/:id/sections/rearrange', auth: true, expose: true},
+	async ({id, section_ids}: RearrangeSectionsRequest): Promise<ResumeWithSections> => {
+		return ResumeService.rearrangeSections({id, section_ids})
 	}
 )
 

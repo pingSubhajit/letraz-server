@@ -16,6 +16,7 @@ import {
 	GetResumeParams,
 	ListResumesParams,
 	ListResumesResponse,
+	RearrangeSectionsRequest,
 	ResumeSectionWithData,
 	ResumeWithSections
 } from '@/services/resume/interface'
@@ -443,6 +444,67 @@ export const ResumeService = {
 			// Job not found or error, return null
 			return null
 		}
+	},
+
+	/**
+	 * Rearrange resume sections
+	 * Uses two-phase update to avoid unique constraint violations
+	 */
+	rearrangeSections: async ({id, section_ids}: RearrangeSectionsRequest): Promise<ResumeWithSections> => {
+		const resumeId = await ResumeService.resolveResumeId(id)
+		await ResumeService.verifyResumeOwnership(resumeId)
+
+		// Validate section_ids are unique
+		const uniqueSectionIds = new Set(section_ids)
+		if (uniqueSectionIds.size !== section_ids.length) {
+			throw APIError.invalidArgument('Duplicate section IDs provided')
+		}
+
+		// Get all existing sections for this resume
+		const existingSections = await db
+			.select()
+			.from(resumeSections)
+			.where(eq(resumeSections.resume_id, resumeId))
+			.orderBy(resumeSections.index)
+
+		// Validate all section_ids belong to this resume
+		const existingSectionIds = new Set(existingSections.map(s => s.id))
+		const invalidIds = section_ids.filter(id => !existingSectionIds.has(id))
+
+		if (invalidIds.length > 0) {
+			throw APIError.invalidArgument(`Section IDs do not belong to this resume: ${invalidIds.join(', ')}`)
+		}
+
+		// Validate all existing sections are included
+		if (existingSectionIds.size !== section_ids.length) {
+			const missingIds = Array.from(existingSectionIds).filter(id => !uniqueSectionIds.has(id))
+			throw APIError.invalidArgument(`Missing section IDs in request: ${missingIds.join(', ')}`)
+		}
+
+		/*
+		 * Two-phase update to avoid unique constraint violations
+		 * Phase 1: Set all to negative indices
+		 */
+		await db.transaction(async tx => {
+			// Phase 1: Set all to negative indices
+			for (let i = 0; i < section_ids.length; i++) {
+				await tx
+					.update(resumeSections)
+					.set({index: -(i + 1)})
+					.where(eq(resumeSections.id, section_ids[i]))
+			}
+
+			// Phase 2: Set final positive indices
+			for (let i = 0; i < section_ids.length; i++) {
+				await tx
+					.update(resumeSections)
+					.set({index: i})
+					.where(eq(resumeSections.id, section_ids[i]))
+			}
+		})
+
+		// Return updated resume with sections
+		return ResumeService.getResumeById({id: resumeId})
 	}
 
 }
