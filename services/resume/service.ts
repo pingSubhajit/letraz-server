@@ -7,9 +7,11 @@ import {
 	experiences,
 	proficiencies,
 	projects,
+	projectSkills,
 	resumes,
 	resumeSections,
-	ResumeSectionType
+	ResumeSectionType,
+	skills
 } from '@/services/resume/schema'
 import {
 	DeleteResumeParams,
@@ -17,13 +19,12 @@ import {
 	ListResumesParams,
 	ListResumesResponse,
 	RearrangeSectionsRequest,
-	ResumeSectionWithData,
 	ResumeWithSections
 } from '@/services/resume/interface'
 import type {Country} from '@/services/core/interface'
 import {AuthData} from '@/services/identity/auth'
 import {IdentityService} from '@/services/identity/service'
-import {and, count, desc, eq, max} from 'drizzle-orm'
+import {and, count, desc, eq, inArray, max} from 'drizzle-orm'
 import {core, job} from '~encore/clients'
 
 /**
@@ -217,6 +218,45 @@ export const ResumeService = {
 		// Batch lookup all countries
 		const countryMap = await this.batchLookupCountries(countryCodes)
 
+		// Collect all skill IDs and project IDs for batch fetching
+		const allSkillIds: string[] = []
+		const projectIds: string[] = []
+
+		allSectionData.forEach((data, idx) => {
+			const section = sections[idx]
+			if (data.length > 0) {
+				if (section.type === 'Skill') {
+					// Collect skill IDs from proficiencies
+					data.forEach((prof: any) => {
+						if (prof.skill_id) allSkillIds.push(prof.skill_id)
+					})
+				} else if (section.type === 'Project') {
+					// Collect project ID for skills_used lookup
+					const project = data[0] as any
+					if (project.id) projectIds.push(project.id)
+				}
+			}
+		})
+
+		// Batch fetch all skills
+		const allSkillsData = allSkillIds.length > 0
+			? await db.select().from(skills).where(inArray(skills.id, allSkillIds))
+			: []
+		const skillMap = new Map(allSkillsData.map(s => [s.id, s]))
+
+		// Batch fetch project skills
+		const allProjectSkills = projectIds.length > 0
+			? await db.select().from(projectSkills).where(inArray(projectSkills.project_id, projectIds))
+			: []
+		// Group by project_id
+		const projectSkillsMap = new Map<string, string[]>()
+		allProjectSkills.forEach(ps => {
+			if (!projectSkillsMap.has(ps.project_id)) {
+				projectSkillsMap.set(ps.project_id, [])
+			}
+			projectSkillsMap.get(ps.project_id)!.push(ps.skill_id)
+		})
+
 		// Build sections with nested data
 		const sectionsWithData = sections.map((section, idx) => {
 			let data = null
@@ -263,17 +303,64 @@ export const ResumeService = {
 					}
 					case 'Project': {
 						const project = sectionData[0] as any
-						// TODO: Fetch skills_used in Part 4
-						data = {...project, skills_used: []}
+
+						// Get skills for this project from pre-fetched data
+						const projectSkillIds = projectSkillsMap.get(project.id) || []
+						const projectSkillsData = projectSkillIds
+							.map(skillId => skillMap.get(skillId))
+							.filter((skill): skill is typeof skills.$inferSelect => skill !== undefined)
+
+						data = {
+							id: project.id,
+							name: project.name,
+							category: project.category,
+							description: project.description,
+							role: project.role,
+							github_url: project.github_url,
+							live_url: project.live_url,
+							started_from_month: project.started_from_month,
+							started_from_year: project.started_from_year,
+							finished_at_month: project.finished_at_month,
+							finished_at_year: project.finished_at_year,
+							current: project.current,
+							skills_used: projectSkillsData
+						}
 						break
 					}
 					case 'Certification': {
-						data = sectionData[0]
+						const cert = sectionData[0] as any
+						data = {
+							id: cert.id,
+							name: cert.name,
+							issuing_organization: cert.issuing_organization,
+							issue_date: cert.issue_date,
+							credential_url: cert.credential_url
+						}
 						break
 					}
 					case 'Skill': {
-						// TODO: Join with skills table in Part 4
-						data = {skills: sectionData}
+					// Build ProficiencyWithSkill array from pre-fetched data
+						const proficiencyRecords = sectionData as any[]
+						const proficienciesWithSkills = proficiencyRecords.map(prof => {
+							const skill = skillMap.get(prof.skill_id)
+							if (!skill) {
+								throw APIError.internal(`Skill not found for proficiency ${prof.id}`)
+							}
+							return {
+								id: prof.id,
+								skill: {
+									id: skill.id,
+									name: skill.name,
+									category: skill.category,
+									preferred: skill.preferred,
+									created_at: skill.created_at,
+									updated_at: skill.updated_at
+								},
+								level: prof.level
+							}
+						})
+
+						data = {skills: proficienciesWithSkills}
 						break
 					}
 				}
@@ -295,8 +382,7 @@ export const ResumeService = {
 			job: jobData,
 			status: resume.status,
 			thumbnail: resume.thumbnail,
-			// TODO: Remove type assertion after Part 4 (clean up Projects, Certifications, Skills data)
-			sections: sectionsWithData as ResumeSectionWithData[],
+			sections: sectionsWithData,
 			created_at: resume.created_at,
 			updated_at: resume.updated_at
 		}
