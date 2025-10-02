@@ -333,11 +333,27 @@ export interface ListResumesParams extends PaginationParams {
  */
 
 /**
- * Create/Update Education Request
+ * Create Education Request (all required fields must be present)
  */
-export interface EducationUpsertRequest {
+export interface EducationCreateRequest {
 	institution_name: string
 	field_of_study: string
+	degree?: string
+	country_code?: string
+	started_from_month?: number & Min<1> & Max<12>
+	started_from_year?: number & Min<1900> & Max<2100>
+	finished_at_month?: number & Min<1> & Max<12>
+	finished_at_year?: number & Min<1900> & Max<2100>
+	current?: boolean
+	description?: string
+}
+
+/**
+ * Update Education Request (all fields optional for partial updates)
+ */
+export interface EducationUpdateRequest {
+	institution_name?: string
+	field_of_study?: string
 	degree?: string
 	country_code?: string
 	started_from_month?: number & Min<1> & Max<12>
@@ -370,12 +386,29 @@ export interface EducationWithIdParams {
  */
 
 /**
- * Create/Update Experience Request
+ * Create Experience Request (all required fields must be present)
  */
-export interface ExperienceUpsertRequest {
+export interface ExperienceCreateRequest {
 	company_name: string
 	job_title: string
 	employment_type: EmploymentType
+	city?: string
+	country_code?: string
+	started_from_month?: number & Min<1> & Max<12>
+	started_from_year?: number & Min<1900> & Max<2100>
+	finished_at_month?: number & Min<1> & Max<12>
+	finished_at_year?: number & Min<1900> & Max<2100>
+	current?: boolean
+	description?: string
+}
+
+/**
+ * Update Experience Request (all fields optional for partial updates)
+ */
+export interface ExperienceUpdateRequest {
+	company_name?: string
+	job_title?: string
+	employment_type?: EmploymentType
 	city?: string
 	country_code?: string
 	started_from_month?: number & Min<1> & Max<12>
@@ -439,10 +472,28 @@ export interface SkillParams {
  */
 
 /**
- * Create/Update Project Request
+ * Create Project Request (all required fields must be present)
  */
-export interface ProjectUpsertRequest {
+export interface ProjectCreateRequest {
 	name: string
+	category?: string
+	description?: string
+	role?: string
+	github_url?: string & IsURL
+	live_url?: string & IsURL
+	skills_used?: SkillInput[]
+	started_from_month?: number & Min<1> & Max<12>
+	started_from_year?: number & Min<1900> & Max<2100>
+	finished_at_month?: number & Min<1> & Max<12>
+	finished_at_year?: number & Min<1900> & Max<2100>
+	current?: boolean
+}
+
+/**
+ * Update Project Request (all fields optional for partial updates)
+ */
+export interface ProjectUpdateRequest {
+	name?: string
 	category?: string
 	description?: string
 	role?: string
@@ -479,10 +530,20 @@ export interface ProjectWithIdParams extends ProjectPathParams {
  */
 
 /**
- * Create/Update Certification Request
+ * Create Certification Request (all required fields must be present)
  */
-export interface CertificationUpsertRequest {
+export interface CertificationCreateRequest {
 	name: string
+	issuing_organization?: string
+	issue_date?: Date
+	credential_url?: string & IsURL
+}
+
+/**
+ * Update Certification Request (all fields optional for partial updates)
+ */
+export interface CertificationUpdateRequest {
+	name?: string
 	issuing_organization?: string
 	issue_date?: Date
 	credential_url?: string & IsURL

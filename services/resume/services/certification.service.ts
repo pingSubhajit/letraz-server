@@ -3,9 +3,10 @@ import {db} from '@/services/resume/database'
 import {certifications, resumeSections, ResumeSectionType} from '@/services/resume/schema'
 import type {
 	Certification,
+	CertificationCreateRequest,
 	CertificationPathParams,
 	CertificationResponse,
-	CertificationUpsertRequest,
+	CertificationUpdateRequest,
 	CertificationWithIdParams,
 	ListCertificationsResponse
 } from '@/services/resume/interface'
@@ -155,7 +156,7 @@ export const CertificationService = {
 	createCertification: async ({
 		resume_id,
 		...data
-	}: CertificationPathParams & CertificationUpsertRequest): Promise<CertificationResponse> => {
+	}: CertificationPathParams & CertificationCreateRequest): Promise<CertificationResponse> => {
 		const userId = ResumeService.getAuthenticatedUserId()
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
@@ -205,7 +206,7 @@ export const CertificationService = {
 		resume_id,
 		id,
 		...data
-	}: CertificationWithIdParams & CertificationUpsertRequest): Promise<CertificationResponse> => {
+	}: CertificationWithIdParams & CertificationUpdateRequest): Promise<CertificationResponse> => {
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 

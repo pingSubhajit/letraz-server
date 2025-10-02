@@ -31,7 +31,7 @@ export const createJob = api(
  * Get a job by ID
  */
 export const getJob = api(
-	{method: 'GET', path: '/job/:id', expose: true, auth: true},
+	{method: 'GET', path: '/job/:id', expose: true},
 	async (params: {id: string}): Promise<JobResponse> => {
 		const job = await JobService.getJobById(params.id)
 		if (!job) {

@@ -2,9 +2,10 @@ import {and, eq} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {db} from '@/services/resume/database'
 import type {
+	ExperienceCreateRequest,
 	ExperiencePathParams,
 	ExperienceResponse,
-	ExperienceUpsertRequest,
+	ExperienceUpdateRequest,
 	ExperienceWithCountry,
 	ExperienceWithIdParams,
 	ListExperiencesResponse
@@ -138,7 +139,7 @@ export const ExperienceService = {
 	createExperience: async ({
 		resume_id,
 		...data
-	}: ExperiencePathParams & ExperienceUpsertRequest): Promise<ExperienceResponse> => {
+	}: ExperiencePathParams & ExperienceCreateRequest): Promise<ExperienceResponse> => {
 		const userId = ResumeService.getAuthenticatedUserId()
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
@@ -209,7 +210,7 @@ export const ExperienceService = {
 		resume_id,
 		id,
 		...data
-	}: ExperienceWithIdParams & ExperienceUpsertRequest): Promise<ExperienceResponse> => {
+	}: ExperienceWithIdParams & ExperienceUpdateRequest): Promise<ExperienceResponse> => {
 		// Validate UUID format
 		ResumeService.validateUUID(id, 'Experience')
 

@@ -64,10 +64,24 @@ export const ResumeService = {
 		sectionType?: ResumeSectionTypeEvent
 		sectionId?: string
 		changedFields?: string[]
+		userId?: string // Optional: provide when auth context unavailable (e.g., PubSub handlers)
 	}): Promise<void> => {
 		try {
-			const authData = getAuthData() as AuthData
-			const userId = authData.userId
+			// Get userId from params or auth context
+			let userId: string
+			if (params.userId) {
+				userId = params.userId
+			} else {
+				const authData = getAuthData() as AuthData | null
+				if (!authData) {
+					log.error(new Error('No auth data available'), 'Cannot publish resume updated event without userId', {
+						resume_id: params.resumeId,
+						change_type: params.changeType
+					})
+					return
+				}
+				userId = authData.userId
+			}
 
 			await resumeUpdated.publish({
 				resume_id: params.resumeId,
@@ -742,8 +756,22 @@ export const ResumeService = {
 			throw APIError.invalidArgument('Cannot delete base resume')
 		}
 
+		const authData = getAuthData() as AuthData
+		const userId = authData.userId
+
 		// Delete resume (cascades to sections and all nested data)
 		await db.delete(resumes).where(eq(resumes.id, resumeId))
+
+		// Publish event for search de-indexing and other cleanup
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'resume_deleted'
+		})
+
+		log.info('Resume deleted and event published', {
+			resume_id: resumeId,
+			user_id: userId
+		})
 	},
 
 	/**

@@ -2,9 +2,10 @@ import {and, eq} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {db} from '@/services/resume/database'
 import type {
+	EducationCreateRequest,
 	EducationPathParams,
 	EducationResponse,
-	EducationUpsertRequest,
+	EducationUpdateRequest,
 	EducationWithCountry,
 	EducationWithIdParams,
 	ListEducationsResponse
@@ -133,7 +134,7 @@ export const EducationService = {
 	/**
 	 * Create new education entry
 	 */
-	createEducation: async ({resume_id, ...data}: EducationPathParams & EducationUpsertRequest): Promise<EducationResponse> => {
+	createEducation: async ({resume_id, ...data}: EducationPathParams & EducationCreateRequest): Promise<EducationResponse> => {
 		const userId = ResumeService.getAuthenticatedUserId()
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
@@ -198,7 +199,7 @@ export const EducationService = {
 	/**
 	 * Update education entry
 	 */
-	updateEducation: async ({resume_id, id, ...data}: EducationWithIdParams & EducationUpsertRequest): Promise<EducationResponse> => {
+	updateEducation: async ({resume_id, id, ...data}: EducationWithIdParams & EducationUpdateRequest): Promise<EducationResponse> => {
 		// Validate UUID format
 		ResumeService.validateUUID(id, 'Education')
 

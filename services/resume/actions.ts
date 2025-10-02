@@ -15,6 +15,7 @@ import {BulkReplaceService} from '@/services/resume/services/bulk-replace.servic
 import {and, eq} from 'drizzle-orm'
 import {ThumbnailEvaluatorService} from './services/thumbnail-evaluator.service'
 import {resumeThumbnails} from '@/services/resume/storage'
+import {ResumeService} from '@/services/resume/service'
 
 /**
  * User Created Event Listener
@@ -294,6 +295,13 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 				completed_at: new Date()
 			})
 
+			// Publish resume updated event for search indexing
+			await ResumeService.publishResumeUpdate({
+				resumeId: event.resume_id,
+				changeType: 'bulk_replace',
+				userId: event.user_id
+			})
+
 			log.info('Resume tailoring completed successfully', {
 				resume_id: event.resume_id,
 				job_id: event.job_id,
@@ -428,6 +436,13 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 						thumbnail: thumbnailUrl
 					})
 					.where(eq(resumes.id, event.resume_id))
+
+				// Publish resume updated event for search indexing
+				await ResumeService.publishResumeUpdate({
+					resumeId: event.resume_id,
+					changeType: 'thumbnail_updated',
+					userId: event.user_id
+				})
 
 				log.info('Thumbnail generation completed successfully', {
 					resume_id: event.resume_id,

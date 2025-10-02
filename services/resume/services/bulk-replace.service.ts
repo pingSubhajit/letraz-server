@@ -14,10 +14,10 @@ import {
 	skills
 } from '@/services/resume/schema'
 import type {
-	CertificationUpsertRequest,
-	EducationUpsertRequest,
-	ExperienceUpsertRequest,
-	ProjectUpsertRequest,
+	CertificationCreateRequest,
+	EducationCreateRequest,
+	ExperienceCreateRequest,
+	ProjectCreateRequest,
 	ReplaceResumeRequest,
 	ResumeWithSections,
 	SectionReplaceInput,
@@ -61,16 +61,16 @@ interface SkillSectionData {
  * Type guards and validators
  */
 const Validators: {
-	validateEducation(data: unknown): asserts data is EducationUpsertRequest
-	validateExperience(data: unknown): asserts data is ExperienceUpsertRequest
-	validateProject(data: unknown): asserts data is ProjectUpsertRequest
-	validateCertification(data: unknown): asserts data is CertificationUpsertRequest
+	validateEducation(data: unknown): asserts data is EducationCreateRequest
+	validateExperience(data: unknown): asserts data is ExperienceCreateRequest
+	validateProject(data: unknown): asserts data is ProjectCreateRequest
+	validateCertification(data: unknown): asserts data is CertificationCreateRequest
 	validateSkill(data: unknown): asserts data is SkillSectionData
 } = {
 	/**
 	 * Validate Education data
 	 */
-	validateEducation: (data: unknown): asserts data is EducationUpsertRequest => {
+	validateEducation: (data: unknown): asserts data is EducationCreateRequest => {
 		const d = data as Record<string, unknown>
 		if (!d.institution_name || typeof d.institution_name !== 'string' || d.institution_name.trim() === '') {
 			throw APIError.invalidArgument('Education: institution_name is required')
@@ -99,7 +99,7 @@ const Validators: {
 	/**
 	 * Validate Experience data
 	 */
-	validateExperience: (data: unknown): asserts data is ExperienceUpsertRequest => {
+	validateExperience: (data: unknown): asserts data is ExperienceCreateRequest => {
 		const d = data as Record<string, unknown>
 		if (!d.company_name || typeof d.company_name !== 'string' || d.company_name.trim() === '') {
 			throw APIError.invalidArgument('Experience: company_name is required')
@@ -125,7 +125,7 @@ const Validators: {
 	/**
 	 * Validate Project data
 	 */
-	validateProject: (data: unknown): asserts data is ProjectUpsertRequest => {
+	validateProject: (data: unknown): asserts data is ProjectCreateRequest => {
 		const d = data as Record<string, unknown>
 		if (!d.name || typeof d.name !== 'string' || d.name.trim() === '') {
 			throw APIError.invalidArgument('Project: name is required')
@@ -156,7 +156,7 @@ const Validators: {
 	/**
 	 * Validate Certification data
 	 */
-	validateCertification: (data: unknown): asserts data is CertificationUpsertRequest => {
+	validateCertification: (data: unknown): asserts data is CertificationCreateRequest => {
 		const d = data as Record<string, unknown>
 		if (!d.name || typeof d.name !== 'string' || d.name.trim() === '') {
 			throw APIError.invalidArgument('Certification: name is required')
@@ -328,7 +328,7 @@ const SectionCreators = {
 		tx: TransactionType,
 		userId: string,
 		sectionId: string,
-		data: EducationUpsertRequest,
+		data: EducationCreateRequest,
 		countryCodes: Set<string>
 	): Promise<void> => {
 		// Collect country code if present
@@ -359,7 +359,7 @@ const SectionCreators = {
 		tx: TransactionType,
 		userId: string,
 		sectionId: string,
-		data: ExperienceUpsertRequest,
+		data: ExperienceCreateRequest,
 		countryCodes: Set<string>
 	): Promise<void> => {
 		// Collect country code if present
@@ -392,7 +392,7 @@ const SectionCreators = {
 	/**
 	 * Create Project section
 	 */
-	createProject: async (tx: TransactionType, userId: string, sectionId: string, data: ProjectUpsertRequest, skillMap: Map<string, string>): Promise<void> => {
+	createProject: async (tx: TransactionType, userId: string, sectionId: string, data: ProjectCreateRequest, skillMap: Map<string, string>): Promise<void> => {
 		// Insert project
 		const [project] = await tx
 			.insert(projects)
@@ -430,7 +430,7 @@ const SectionCreators = {
 	/**
 	 * Create Certification section
 	 */
-	createCertification: async (tx: TransactionType, userId: string, sectionId: string, data: CertificationUpsertRequest): Promise<void> => {
+	createCertification: async (tx: TransactionType, userId: string, sectionId: string, data: CertificationCreateRequest): Promise<void> => {
 		await tx.insert(certifications).values({
 			user_id: userId,
 			resume_section_id: sectionId,
@@ -553,16 +553,16 @@ export const BulkReplaceService = {
 				const countryCodesSet = new Set<string>()
 				switch (section.type) {
 					case ResumeSectionType.Education:
-						await SectionCreators.createEducation(tx, userId, newSection.id, section.data as EducationUpsertRequest, countryCodesSet)
+						await SectionCreators.createEducation(tx, userId, newSection.id, section.data as EducationCreateRequest, countryCodesSet)
 						break
 					case ResumeSectionType.Experience:
-						await SectionCreators.createExperience(tx, userId, newSection.id, section.data as ExperienceUpsertRequest, countryCodesSet)
+						await SectionCreators.createExperience(tx, userId, newSection.id, section.data as ExperienceCreateRequest, countryCodesSet)
 						break
 					case ResumeSectionType.Project:
-						await SectionCreators.createProject(tx, userId, newSection.id, section.data as ProjectUpsertRequest, skillMap)
+						await SectionCreators.createProject(tx, userId, newSection.id, section.data as ProjectCreateRequest, skillMap)
 						break
 					case ResumeSectionType.Certification:
-						await SectionCreators.createCertification(tx, userId, newSection.id, section.data as CertificationUpsertRequest)
+						await SectionCreators.createCertification(tx, userId, newSection.id, section.data as CertificationCreateRequest)
 						break
 					case ResumeSectionType.Skill:
 						await SectionCreators.createSkill(tx, userId, newSection.id, section.data as SkillSectionData, skillMap)

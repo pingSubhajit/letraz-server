@@ -69,6 +69,8 @@ export type ResumeChangeType =
 	| 'section_updated'
 	| 'section_reordered'
 	| 'bulk_replace'
+	| 'resume_deleted'
+	| 'thumbnail_updated'
 
 /**
  * Resume Section Type for events

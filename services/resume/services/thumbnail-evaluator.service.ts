@@ -23,7 +23,11 @@ const THUMBNAIL_CONFIG = {
 
 		// Field-level changes (medium-high impact)
 		section_updated_major: 8,
-		section_updated_minor: 2
+		section_updated_minor: 2,
+
+		// No thumbnail regeneration needed
+		resume_deleted: 0,
+		thumbnail_updated: 0
 	},
 
 	// Major fields that significantly affect resume appearance
@@ -77,6 +81,8 @@ export const ThumbnailEvaluatorService = {
 		if (change_type === 'section_removed') return THUMBNAIL_CONFIG.SCORES.section_removed
 		if (change_type === 'section_reordered') return THUMBNAIL_CONFIG.SCORES.section_reordered
 		if (change_type === 'bulk_replace') return THUMBNAIL_CONFIG.SCORES.bulk_replace
+		if (change_type === 'resume_deleted') return THUMBNAIL_CONFIG.SCORES.resume_deleted
+		if (change_type === 'thumbnail_updated') return THUMBNAIL_CONFIG.SCORES.thumbnail_updated
 
 		// For section updates, analyze which fields changed
 		if (change_type === 'section_updated' && changed_fields && changed_fields.length > 0) {

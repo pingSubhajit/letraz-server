@@ -1,18 +1,21 @@
 import {api} from 'encore.dev/api'
 import type {
 	AddSkillRequest,
+	CertificationCreateRequest,
 	CertificationPathParams,
 	CertificationResponse,
-	CertificationUpsertRequest,
+	CertificationUpdateRequest,
 	CertificationWithIdParams,
 	DeleteResumeParams,
+	EducationCreateRequest,
 	EducationPathParams,
 	EducationResponse,
-	EducationUpsertRequest,
+	EducationUpdateRequest,
 	EducationWithIdParams,
+	ExperienceCreateRequest,
 	ExperiencePathParams,
 	ExperienceResponse,
-	ExperienceUpsertRequest,
+	ExperienceUpdateRequest,
 	ExperienceWithIdParams,
 	GetResumeParams,
 	GlobalSkillCategoriesResponse,
@@ -25,9 +28,10 @@ import type {
 	ListResumesParams,
 	ListResumesResponse,
 	ProficiencyResponse,
+	ProjectCreateRequest,
 	ProjectPathParams,
 	ProjectResponse,
-	ProjectUpsertRequest,
+	ProjectUpdateRequest,
 	ProjectWithIdParams,
 	RearrangeSectionsRequest,
 	ReplaceResumeRequest,
@@ -119,7 +123,7 @@ export const getEducation = api(
  */
 export const createEducation = api(
 	{method: 'POST', path: '/resume/:resume_id/education', auth: true, expose: true},
-	async ({resume_id, ...data}: EducationPathParams & EducationUpsertRequest): Promise<EducationResponse> => {
+	async ({resume_id, ...data}: EducationPathParams & EducationCreateRequest): Promise<EducationResponse> => {
 		return EducationService.createEducation({resume_id, ...data})
 	}
 )
@@ -130,7 +134,7 @@ export const createEducation = api(
  */
 export const updateEducation = api(
 	{method: 'PATCH', path: '/resume/:resume_id/education/:id', auth: true, expose: true},
-	async ({resume_id, id, ...data}: EducationWithIdParams & EducationUpsertRequest): Promise<EducationResponse> => {
+	async ({resume_id, id, ...data}: EducationWithIdParams & EducationUpdateRequest): Promise<EducationResponse> => {
 		return EducationService.updateEducation({resume_id, id, ...data})
 	}
 )
@@ -180,7 +184,7 @@ export const getExperience = api(
  */
 export const createExperience = api(
 	{method: 'POST', path: '/resume/:resume_id/experience', auth: true, expose: true},
-	async ({resume_id, ...data}: ExperiencePathParams & ExperienceUpsertRequest): Promise<ExperienceResponse> => {
+	async ({resume_id, ...data}: ExperiencePathParams & ExperienceCreateRequest): Promise<ExperienceResponse> => {
 		return ExperienceService.createExperience({resume_id, ...data})
 	}
 )
@@ -191,7 +195,7 @@ export const createExperience = api(
  */
 export const updateExperience = api(
 	{method: 'PATCH', path: '/resume/:resume_id/experience/:id', auth: true, expose: true},
-	async ({resume_id, id, ...data}: ExperienceWithIdParams & ExperienceUpsertRequest): Promise<ExperienceResponse> => {
+	async ({resume_id, id, ...data}: ExperienceWithIdParams & ExperienceUpdateRequest): Promise<ExperienceResponse> => {
 		return ExperienceService.updateExperience({resume_id, id, ...data})
 	}
 )
@@ -332,7 +336,7 @@ export const getProject = api(
  */
 export const createProject = api(
 	{method: 'POST', path: '/resume/:resume_id/project', auth: true, expose: true},
-	async ({resume_id, ...data}: ProjectPathParams & ProjectUpsertRequest): Promise<ProjectResponse> => {
+	async ({resume_id, ...data}: ProjectPathParams & ProjectCreateRequest): Promise<ProjectResponse> => {
 		return ProjectService.createProject({resume_id, ...data})
 	}
 )
@@ -343,7 +347,7 @@ export const createProject = api(
  */
 export const updateProject = api(
 	{method: 'PATCH', path: '/resume/:resume_id/project/:id', auth: true, expose: true},
-	async ({resume_id, id, ...data}: ProjectWithIdParams & ProjectUpsertRequest): Promise<ProjectResponse> => {
+	async ({resume_id, id, ...data}: ProjectWithIdParams & ProjectUpdateRequest): Promise<ProjectResponse> => {
 		return ProjectService.updateProject({resume_id, id, ...data})
 	}
 )
@@ -393,7 +397,7 @@ export const getCertification = api(
  */
 export const createCertification = api(
 	{method: 'POST', path: '/resume/:resume_id/certification', auth: true, expose: true},
-	async ({resume_id, ...data}: CertificationPathParams & CertificationUpsertRequest): Promise<CertificationResponse> => {
+	async ({resume_id, ...data}: CertificationPathParams & CertificationCreateRequest): Promise<CertificationResponse> => {
 		return CertificationService.createCertification({resume_id, ...data})
 	}
 )
@@ -408,7 +412,7 @@ export const updateCertification = api(
 		resume_id,
 		id,
 		...data
-	}: CertificationWithIdParams & CertificationUpsertRequest): Promise<CertificationResponse> => {
+	}: CertificationWithIdParams & CertificationUpdateRequest): Promise<CertificationResponse> => {
 		return CertificationService.updateCertification({resume_id, id, ...data})
 	}
 )

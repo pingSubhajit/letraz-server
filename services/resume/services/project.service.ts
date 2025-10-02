@@ -3,9 +3,10 @@ import {APIError} from 'encore.dev/api'
 import {db} from '@/services/resume/database'
 import type {
 	ListProjectsResponse,
+	ProjectCreateRequest,
 	ProjectPathParams,
 	ProjectResponse,
-	ProjectUpsertRequest,
+	ProjectUpdateRequest,
 	ProjectWithIdParams,
 	ProjectWithSkills,
 	SkillInput
@@ -206,7 +207,7 @@ export const ProjectService = {
 	 * Create new project
 	 * Auto-creates resume section and handles M2M skills
 	 */
-	createProject: async ({resume_id, ...data}: ProjectPathParams & ProjectUpsertRequest): Promise<ProjectResponse> => {
+	createProject: async ({resume_id, ...data}: ProjectPathParams & ProjectCreateRequest): Promise<ProjectResponse> => {
 		const userId = ResumeService.getAuthenticatedUserId()
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
@@ -272,7 +273,7 @@ export const ProjectService = {
 		resume_id,
 		id,
 		...data
-	}: ProjectWithIdParams & ProjectUpsertRequest): Promise<ProjectResponse> => {
+	}: ProjectWithIdParams & ProjectUpdateRequest): Promise<ProjectResponse> => {
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 
