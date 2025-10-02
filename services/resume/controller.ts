@@ -492,3 +492,26 @@ export const tailorResume = api(
 	}
 )
 
+/**
+ * ==========================================
+ * ADMIN ENDPOINTS
+ * ==========================================
+ */
+
+/**
+ * Get Resume by ID (Admin)
+ * Fetches any resume by ID regardless of ownership
+ * Requires x-admin-api-key header for authentication
+ *
+ * The unified gateway detects the admin API key and authenticates as admin.
+ * The resume service recognizes admin users and skips ownership checks.
+ *
+ * GET /admin/resume/:id
+ */
+export const getResumeByIdAdmin = api(
+	{method: 'GET', path: '/admin/resume/:id', auth: true, expose: true},
+	async ({id}: GetResumeParams): Promise<ResumeResponse> => {
+		const resume = await ResumeService.getResumeById({id})
+		return {resume}
+	}
+)

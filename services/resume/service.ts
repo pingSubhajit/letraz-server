@@ -76,9 +76,21 @@ export const ResumeService = {
 	/**
 	 * Verify resume ownership
 	 * Throws PermissionDenied if user doesn't own the resume
+	 * Skips ownership check for admin users
 	 */
-	async verifyResumeOwnership(resumeId: string): Promise<void> {
-		const userId = this.getAuthenticatedUserId()
+	verifyResumeOwnership: async (resumeId: string): Promise<void> => {
+		const authData = getAuthData() as AuthData
+		const userId = authData.userId
+
+		// Skip ownership check for admin users
+		if (userId === 'admin') {
+			// Verify resume exists
+			const resume = await db.select().from(resumes).where(eq(resumes.id, resumeId)).limit(1)
+			if (resume.length === 0) {
+				throw APIError.notFound(`Resume with ID '${resumeId}' not found`)
+			}
+			return
+		}
 
 		const resume = await db.select().from(resumes).where(eq(resumes.id, resumeId)).limit(1)
 
@@ -1048,4 +1060,3 @@ export const ResumeService = {
 	}
 
 }
-
