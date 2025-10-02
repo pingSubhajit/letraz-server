@@ -59,3 +59,64 @@ export const resumeTailoringSuccess = new Topic<ResumeTailoringSuccessEvent>('re
 	deliveryGuarantee: 'at-least-once'
 })
 
+/**
+ * Resume Change Type Enum
+ * Describes the type of change made to a resume
+ */
+export type ResumeChangeType =
+	| 'section_added'
+	| 'section_removed'
+	| 'section_updated'
+	| 'section_reordered'
+	| 'bulk_replace'
+
+/**
+ * Resume Section Type for events
+ */
+export type ResumeSectionTypeEvent = 'Education' | 'Experience' | 'Skill' | 'Project' | 'Certification'
+
+/**
+ * Resume Updated Event
+ * Published whenever a resume or its sections are modified
+ * Used by thumbnail generation evaluator to determine if regeneration is needed
+ */
+export interface ResumeUpdatedEvent {
+	resume_id: string
+	user_id: string
+	change_type: ResumeChangeType
+	section_type?: ResumeSectionTypeEvent
+	section_id?: string
+	changed_fields?: string[] // e.g., ['job_title', 'company_name']
+	metadata?: Record<string, any> // Additional context
+	timestamp: Date
+}
+
+/**
+ * Resume Updated Topic
+ */
+export const resumeUpdated = new Topic<ResumeUpdatedEvent>('resume-updated', {
+	deliveryGuarantee: 'at-least-once'
+})
+
+/**
+ * Thumbnail Generation Triggered Event
+ * Published when thumbnail regeneration is needed based on change significance
+ */
+export interface ThumbnailGenerationTriggeredEvent {
+	resume_id: string
+	user_id: string
+	reason: string // Why regeneration was triggered
+	change_score: number // The score that triggered regeneration
+	timestamp: Date
+}
+
+/**
+ * Thumbnail Generation Triggered Topic
+ */
+export const thumbnailGenerationTriggered = new Topic<ThumbnailGenerationTriggeredEvent>(
+	'thumbnail-generation-triggered',
+	{
+		deliveryGuarantee: 'at-least-once'
+	}
+)
+

@@ -2,6 +2,12 @@ import {APIError} from 'encore.dev/api'
 import {getAuthData} from '~encore/auth'
 import {db} from '@/services/resume/database'
 import {
+	ResumeChangeType,
+	ResumeSectionTypeEvent,
+	resumeTailoringTriggered,
+	resumeUpdated
+} from '@/services/resume/topics'
+import {
 	certifications,
 	educations,
 	experiences,
@@ -31,7 +37,6 @@ import {AuthData} from '@/services/identity/auth'
 import {IdentityService} from '@/services/identity/service'
 import {and, count, desc, eq, inArray, max} from 'drizzle-orm'
 import {core, job} from '~encore/clients'
-import {resumeTailoringTriggered} from '@/services/resume/topics'
 import {JobStatus} from '@/services/job/schema'
 import log from 'encore.dev/log'
 
@@ -46,6 +51,46 @@ export const ResumeService = {
 	getAuthenticatedUserId: (): string => {
 		const authData = getAuthData() as AuthData
 		return authData.userId
+	},
+
+	/**
+	 * Publish resume updated event for thumbnail regeneration
+	 *
+	 * @param params - Event parameters including resume ID, change type, etc.
+	 */
+	publishResumeUpdate: async (params: {
+		resumeId: string
+		changeType: ResumeChangeType
+		sectionType?: ResumeSectionTypeEvent
+		sectionId?: string
+		changedFields?: string[]
+	}): Promise<void> => {
+		try {
+			const authData = getAuthData() as AuthData
+			const userId = authData.userId
+
+			await resumeUpdated.publish({
+				resume_id: params.resumeId,
+				user_id: userId,
+				change_type: params.changeType,
+				section_type: params.sectionType,
+				section_id: params.sectionId,
+				changed_fields: params.changedFields,
+				timestamp: new Date()
+			})
+
+			log.info('Published resume updated event', {
+				resume_id: params.resumeId,
+				change_type: params.changeType,
+				section_type: params.sectionType
+			})
+		} catch (error) {
+			// Log but don't fail the main operation if event publishing fails
+			log.error(error, 'Failed to publish resume updated event', {
+				resume_id: params.resumeId,
+				change_type: params.changeType
+			})
+		}
 	},
 
 	/**
@@ -871,6 +916,12 @@ export const ResumeService = {
 					.set({index: i})
 					.where(eq(resumeSections.id, section_ids[i]))
 			}
+		})
+
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_reordered'
 		})
 
 		// Return updated resume with sections

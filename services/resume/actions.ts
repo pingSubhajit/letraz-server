@@ -4,9 +4,15 @@ import {userCreated} from '@/services/identity/topics'
 import {jobScrapeFailed, jobScrapeSuccess} from '@/services/job/topics'
 import {db} from '@/services/resume/database'
 import {ProcessStatus, resumeProcesses, resumes, ResumeSectionType, ResumeStatus} from '@/services/resume/schema'
-import {resumeTailoringFailed, resumeTailoringSuccess, resumeTailoringTriggered} from '@/services/resume/topics'
+import {
+	resumeTailoringFailed,
+	resumeTailoringSuccess,
+	resumeTailoringTriggered,
+	resumeUpdated
+} from '@/services/resume/topics'
 import {BulkReplaceService} from '@/services/resume/services/bulk-replace.service'
 import {and, eq} from 'drizzle-orm'
+import {ThumbnailEvaluatorService} from './services/thumbnail-evaluator.service'
 
 /**
  * User Created Event Listener
@@ -348,3 +354,20 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 		}
 	}
 })
+
+/**
+ * Thumbnail Evaluation Subscription
+ * Subscribes to resume update events and evaluates if thumbnail regeneration is needed
+ *
+ * Process:
+ * 1. Receives resumeUpdated event
+ * 2. Calculates significance score based on change type and affected fields
+ * 3. If score exceeds threshold, publishes thumbnailGenerationTriggered event
+ */
+const resumeUpdatedListener = new Subscription(resumeUpdated, 'thumbnail-evaluation', {
+	handler: async event => {
+		await ThumbnailEvaluatorService.processResumeUpdate(event)
+	}
+})
+
+

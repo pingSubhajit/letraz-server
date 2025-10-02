@@ -584,7 +584,15 @@ export const BulkReplaceService = {
 		const resumeId = await ResumeService.resolveResumeId(id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 
-		return BulkReplaceService.replaceResumeInternal(userId, resumeId, sections)
+		const result = await BulkReplaceService.replaceResumeInternal(userId, resumeId, sections)
+
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'bulk_replace'
+		})
+
+		return result
 	}
 }
 

@@ -155,7 +155,6 @@ const resumes = p.pgTable(
 		status: p.varchar('status', {length: 20}).$type<ResumeStatus>(),
 		thumbnail: p.varchar('thumbnail', {length: 1000}),
 		process_id: p.uuid('process_id').references(() => resumeProcesses.id),
-		thumbnail_process_id: p.uuid('thumbnail_process_id').references(() => resumeProcesses.id),
 		created_at: p.timestamp('created_at', {withTimezone: true}).notNull().defaultNow(),
 		updated_at: p
 			.timestamp('updated_at', {withTimezone: true})
@@ -389,10 +388,6 @@ const skillAliasesRelations = relations(skillAliases, ({one}) => ({
 const resumesRelations = relations(resumes, ({one, many}) => ({
 	process: one(resumeProcesses, {
 		fields: [resumes.process_id],
-		references: [resumeProcesses.id]
-	}),
-	thumbnailProcess: one(resumeProcesses, {
-		fields: [resumes.thumbnail_process_id],
 		references: [resumeProcesses.id]
 	}),
 	sections: many(resumeSections)

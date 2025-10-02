@@ -176,6 +176,14 @@ export const ExperienceService = {
 			})
 			.returning()
 
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_added',
+			sectionType: 'Experience',
+			sectionId: exp.id
+		})
+
 		return {
 			experience: {
 				id: exp.id,
@@ -265,6 +273,20 @@ export const ExperienceService = {
 
 		const [updatedExp] = await db.update(experiences).set(updateData).where(eq(experiences.id, id)).returning()
 
+		// Track which major fields changed
+		const changedFields = Object.keys(updateData).filter(field => ['company_name', 'job_title', 'employment_type', 'city', 'country_code'].includes(field))
+
+		// Publish event for thumbnail generation
+		if (changedFields.length > 0 || Object.keys(updateData).length > 0) {
+			await ResumeService.publishResumeUpdate({
+				resumeId,
+				changeType: 'section_updated',
+				sectionType: 'Experience',
+				sectionId: id,
+				changedFields
+			})
+		}
+
 		return {
 			experience: {
 				id: updatedExp.id,
@@ -316,6 +338,14 @@ export const ExperienceService = {
 
 		// Delete section (cascades to experience via FK)
 		await db.delete(resumeSections).where(eq(resumeSections.id, exp.resume_section_id))
+
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_removed',
+			sectionType: 'Experience',
+			sectionId: id
+		})
 	}
 }
 

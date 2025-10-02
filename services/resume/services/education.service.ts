@@ -170,6 +170,14 @@ export const EducationService = {
 			})
 			.returning()
 
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_added',
+			sectionType: 'Education',
+			sectionId: edu.id
+		})
+
 		return {
 			education: {
 				id: edu.id,
@@ -253,6 +261,20 @@ export const EducationService = {
 
 		const [updatedEdu] = await db.update(educations).set(updateData).where(eq(educations.id, id)).returning()
 
+		// Track which major fields changed
+		const changedFields = Object.keys(updateData).filter(field => ['institution_name', 'field_of_study', 'degree', 'country_code'].includes(field))
+
+		// Publish event for thumbnail generation
+		if (changedFields.length > 0 || Object.keys(updateData).length > 0) {
+			await ResumeService.publishResumeUpdate({
+				resumeId,
+				changeType: 'section_updated',
+				sectionType: 'Education',
+				sectionId: id,
+				changedFields
+			})
+		}
+
 		return {
 			education: {
 				id: updatedEdu.id,
@@ -303,6 +325,14 @@ export const EducationService = {
 
 		// Delete section (cascades to education via FK)
 		await db.delete(resumeSections).where(eq(resumeSections.id, edu.resume_section_id))
+
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_removed',
+			sectionType: 'Education',
+			sectionId: id
+		})
 	}
 }
 

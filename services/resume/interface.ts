@@ -63,7 +63,6 @@ export interface Resume {
 	status: ResumeStatus | null
 	thumbnail: string | null
 	process_id: string | null
-	thumbnail_process_id: string | null
 	created_at: Date
 	updated_at: Date
 }

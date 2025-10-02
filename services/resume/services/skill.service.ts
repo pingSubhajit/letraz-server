@@ -236,6 +236,15 @@ export const SkillService = {
 			})
 			.returning()
 
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_updated',
+			sectionType: 'Skill',
+			sectionId: proficiency.id,
+			changedFields: ['skill_id']
+		})
+
 		return {
 			proficiency: {
 				id: proficiency.id,
@@ -335,6 +344,20 @@ export const SkillService = {
 			.where(eq(proficiencies.id, id))
 			.returning()
 
+		// Track which major fields changed
+		const changedFields = Object.keys(updateData).filter(field => ['skill_id', 'level'].includes(field))
+
+		// Publish event for thumbnail generation
+		if (changedFields.length > 0) {
+			await ResumeService.publishResumeUpdate({
+				resumeId,
+				changeType: 'section_updated',
+				sectionType: 'Skill',
+				sectionId: id,
+				changedFields
+			})
+		}
+
 		return {
 			proficiency: {
 				id: updatedProficiency.id,
@@ -399,6 +422,15 @@ export const SkillService = {
 			// Delete the empty skill section
 			await db.delete(resumeSections).where(eq(resumeSections.id, section.id))
 		}
+
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_updated',
+			sectionType: 'Skill',
+			sectionId: id,
+			changedFields: ['removed']
+		})
 	},
 
 	/**

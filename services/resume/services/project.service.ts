@@ -251,6 +251,14 @@ export const ProjectService = {
 			projectSkills = await ProjectHelpers.getProjectSkills(project.id)
 		}
 
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_added',
+			sectionType: 'Project',
+			sectionId: project.id
+		})
+
 		return {
 			project: ProjectHelpers.buildProjectResponse(project, projectSkills)
 		}
@@ -301,6 +309,9 @@ export const ProjectService = {
 
 		const [updatedProject] = await db.update(projects).set(updateData).where(eq(projects.id, id)).returning()
 
+		// Track which major fields changed
+		const changedFields = Object.keys(updateData).filter(field => ['title', 'project_url'].includes(field))
+
 		// Handle skills_used replacement if provided
 		if (data.skills_used !== undefined) {
 			// Delete existing associations
@@ -315,6 +326,17 @@ export const ProjectService = {
 
 		// Get current skills
 		const skills = await ProjectHelpers.getProjectSkills(id)
+
+		// Publish event for thumbnail generation
+		if (changedFields.length > 0 || Object.keys(updateData).length > 0) {
+			await ResumeService.publishResumeUpdate({
+				resumeId,
+				changeType: 'section_updated',
+				sectionType: 'Project',
+				sectionId: id,
+				changedFields
+			})
+		}
 
 		return {
 			project: ProjectHelpers.buildProjectResponse(updatedProject, skills)
@@ -334,6 +356,14 @@ export const ProjectService = {
 
 		// Delete section (cascades to project and M2M records via FK)
 		await db.delete(resumeSections).where(eq(resumeSections.id, project.resume_section_id))
+
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_removed',
+			sectionType: 'Project',
+			sectionId: id
+		})
 	}
 }
 

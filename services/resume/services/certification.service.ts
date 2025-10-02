@@ -184,6 +184,14 @@ export const CertificationService = {
 			})
 			.returning()
 
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_added',
+			sectionType: 'Certification',
+			sectionId: certification.id
+		})
+
 		return {
 			certification: CertificationHelpers.buildCertificationResponse(certification)
 		}
@@ -230,6 +238,20 @@ export const CertificationService = {
 			.where(eq(certifications.id, id))
 			.returning()
 
+		// Track which major fields changed
+		const changedFields = Object.keys(updateData).filter(field => ['name', 'issuing_organization'].includes(field))
+
+		// Publish event for thumbnail generation
+		if (changedFields.length > 0 || Object.keys(updateData).length > 0) {
+			await ResumeService.publishResumeUpdate({
+				resumeId,
+				changeType: 'section_updated',
+				sectionType: 'Certification',
+				sectionId: id,
+				changedFields
+			})
+		}
+
 		return {
 			certification: CertificationHelpers.buildCertificationResponse(updatedCertification)
 		}
@@ -248,6 +270,14 @@ export const CertificationService = {
 
 		// Delete section (cascades to certification via FK)
 		await db.delete(resumeSections).where(eq(resumeSections.id, certification.resume_section_id))
+
+		// Publish event for thumbnail generation
+		await ResumeService.publishResumeUpdate({
+			resumeId,
+			changeType: 'section_removed',
+			sectionType: 'Certification',
+			sectionId: id
+		})
 	}
 }
 
