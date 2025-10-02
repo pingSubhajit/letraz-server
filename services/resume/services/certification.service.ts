@@ -29,6 +29,30 @@ import {and, eq} from 'drizzle-orm'
  */
 const CertificationHelpers = {
 	/**
+	 * Parse and validate date input
+	 * Accepts Date objects or date strings, returns Date object or null
+	 */
+	parseDate: (dateInput: any): Date | null => {
+		if (dateInput === undefined || dateInput === null) {
+			return null
+		}
+
+		if (dateInput instanceof Date) {
+			return dateInput
+		}
+
+		if (typeof dateInput === 'string') {
+			const parsed = new Date(dateInput)
+			if (isNaN(parsed.getTime())) {
+				throw APIError.invalidArgument('Invalid date format. Expected ISO date string (e.g., "2023-11-10")')
+			}
+			return parsed
+		}
+
+		throw APIError.invalidArgument('Date must be a string or Date object')
+	},
+
+	/**
 	 * Get and verify certification exists and belongs to resume
 	 * Returns the certification record
 	 */
@@ -144,6 +168,9 @@ export const CertificationService = {
 		// Create section
 		const sectionId = await ResumeService.createSectionForResume(resumeId, ResumeSectionType.Certification)
 
+		// Parse date if provided
+		const parsedDate = CertificationHelpers.parseDate(data.issue_date)
+
 		// Create certification
 		const [certification] = await db
 			.insert(certifications)
@@ -152,7 +179,7 @@ export const CertificationService = {
 				resume_section_id: sectionId,
 				name: data.name.trim(),
 				issuing_organization: data.issuing_organization?.trim() || null,
-				issue_date: data.issue_date || null,
+				issue_date: parsedDate,
 				credential_url: data.credential_url || null
 			})
 			.returning()
@@ -189,7 +216,8 @@ export const CertificationService = {
 			updateData.issuing_organization = data.issuing_organization?.trim() || null
 		}
 		if (data.issue_date !== undefined) {
-			updateData.issue_date = data.issue_date || null
+			// Parse and validate date
+			updateData.issue_date = CertificationHelpers.parseDate(data.issue_date)
 		}
 		if (data.credential_url !== undefined) {
 			updateData.credential_url = data.credential_url || null

@@ -30,6 +30,7 @@ import type {
 	ProjectUpsertRequest,
 	ProjectWithIdParams,
 	RearrangeSectionsRequest,
+	ReplaceResumeRequest,
 	ResumeResponse,
 	ResumeWithSections,
 	SkillCategoriesResponse,
@@ -43,6 +44,7 @@ import {ExperienceService} from '@/services/resume/services/experience.service'
 import {SkillService} from '@/services/resume/services/skill.service'
 import {ProjectService} from '@/services/resume/services/project.service'
 import {CertificationService} from '@/services/resume/services/certification.service'
+import {BulkReplaceService} from '@/services/resume/services/bulk-replace.service'
 
 /**
  * List all resumes for authenticated user
@@ -432,6 +434,27 @@ export const rearrangeSections = api(
 	{method: 'PUT', path: '/resume/:id/sections/rearrange', auth: true, expose: true},
 	async ({id, section_ids}: RearrangeSectionsRequest): Promise<ResumeWithSections> => {
 		return ResumeService.rearrangeSections({id, section_ids})
+	}
+)
+
+/**
+ * Bulk replace resume sections
+ * PUT /resume/:id
+ *
+ * Completely replaces all sections of a resume with new data.
+ * Uses atomic transaction for all-or-nothing operation.
+ *
+ * Features:
+ * - Validates entire payload before any DB changes
+ * - Deletes all existing sections (cascades)
+ * - Bulk skill resolution (single-pass)
+ * - Optimized with minimal queries
+ * - Returns complete updated resume
+ */
+export const replaceResume = api(
+	{method: 'PUT', path: '/resume/:id', auth: true, expose: true},
+	async ({id, sections}: ReplaceResumeRequest): Promise<ResumeWithSections> => {
+		return BulkReplaceService.replaceResume({id, sections})
 	}
 )
 
