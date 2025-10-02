@@ -5,14 +5,20 @@ import type {
 	EducationResponse,
 	EducationUpsertRequest,
 	EducationWithIdParams,
+	ExperiencePathParams,
+	ExperienceResponse,
+	ExperienceUpsertRequest,
+	ExperienceWithIdParams,
 	GetResumeParams,
 	ListEducationsResponse,
+	ListExperiencesResponse,
 	ListResumesParams,
 	ListResumesResponse,
 	ResumeResponse
 } from '@/services/resume/interface'
 import {ResumeService} from '@/services/resume/service'
 import {EducationService} from '@/services/resume/services/education.service'
+import {ExperienceService} from '@/services/resume/services/experience.service'
 
 /**
  * List all resumes for authenticated user
@@ -109,6 +115,67 @@ export const deleteEducation = api(
 	{method: 'DELETE', path: '/resume/:resume_id/education/:id', auth: true, expose: true},
 	async ({resume_id, id}: EducationWithIdParams): Promise<void> => {
 		await EducationService.deleteEducation({resume_id, id})
+	}
+)
+
+/**
+ * ==========================================
+ * EXPERIENCE ENDPOINTS
+ * ==========================================
+ */
+
+/**
+ * List all experiences for a resume
+ * GET /resume/:resume_id/experience
+ */
+export const listExperiences = api(
+	{method: 'GET', path: '/resume/:resume_id/experience', auth: true, expose: true},
+	async ({resume_id}: ExperiencePathParams): Promise<ListExperiencesResponse> => {
+		return ExperienceService.listExperiences({resume_id})
+	}
+)
+
+/**
+ * Get specific experience by ID
+ * GET /resume/:resume_id/experience/:id
+ */
+export const getExperience = api(
+	{method: 'GET', path: '/resume/:resume_id/experience/:id', auth: true, expose: true},
+	async ({resume_id, id}: ExperienceWithIdParams): Promise<ExperienceResponse> => {
+		return ExperienceService.getExperienceById({resume_id, id})
+	}
+)
+
+/**
+ * Create new experience entry
+ * POST /resume/:resume_id/experience
+ */
+export const createExperience = api(
+	{method: 'POST', path: '/resume/:resume_id/experience', auth: true, expose: true},
+	async ({resume_id, ...data}: ExperiencePathParams & ExperienceUpsertRequest): Promise<ExperienceResponse> => {
+		return ExperienceService.createExperience({resume_id, ...data})
+	}
+)
+
+/**
+ * Update experience entry
+ * PATCH /resume/:resume_id/experience/:id
+ */
+export const updateExperience = api(
+	{method: 'PATCH', path: '/resume/:resume_id/experience/:id', auth: true, expose: true},
+	async ({resume_id, id, ...data}: ExperienceWithIdParams & ExperienceUpsertRequest): Promise<ExperienceResponse> => {
+		return ExperienceService.updateExperience({resume_id, id, ...data})
+	}
+)
+
+/**
+ * Delete experience entry
+ * DELETE /resume/:resume_id/experience/:id
+ */
+export const deleteExperience = api(
+	{method: 'DELETE', path: '/resume/:resume_id/experience/:id', auth: true, expose: true},
+	async ({resume_id, id}: ExperienceWithIdParams): Promise<void> => {
+		await ExperienceService.deleteExperience({resume_id, id})
 	}
 )
 

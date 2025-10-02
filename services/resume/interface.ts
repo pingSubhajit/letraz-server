@@ -389,11 +389,18 @@ export interface ExperienceUpsertRequest {
 }
 
 /**
- * Experience Query Params
+ * Experience Path Params (for list/create)
  */
-export interface ExperienceParams {
+export interface ExperiencePathParams {
 	resume_id: string
-	id?: string
+}
+
+/**
+ * Experience Path Params with ID (for get/update/delete)
+ */
+export interface ExperienceWithIdParams {
+	resume_id: string
+	id: string
 }
 
 /**
