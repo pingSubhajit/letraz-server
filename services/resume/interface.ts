@@ -181,9 +181,21 @@ export interface Proficiency {
  */
 
 /**
- * Project with Skills
+ * Project with Skills (clean response without internal fields)
  */
-export interface ProjectWithSkills extends Omit<Project, 'created_at' | 'updated_at'> {
+export interface ProjectWithSkills {
+	id: string
+	name: string
+	category: string | null
+	description: string | null
+	role: string | null
+	github_url: string | null
+	live_url: string | null
+	started_from_month: number | null
+	started_from_year: number | null
+	finished_at_month: number | null
+	finished_at_year: number | null
+	current: boolean | null
 	skills_used: Skill[]
 }
 
@@ -449,11 +461,19 @@ export interface ProjectUpsertRequest {
 }
 
 /**
- * Project Query Params
+ * Path parameters for project endpoints
  */
-export interface ProjectParams {
+export interface ProjectPathParams {
+	/** Resume ID or 'base' */
 	resume_id: string
-	id?: string
+}
+
+/**
+ * Path parameters for specific project operations
+ */
+export interface ProjectWithIdParams extends ProjectPathParams {
+	/** Project ID */
+	id: string
 }
 
 /**

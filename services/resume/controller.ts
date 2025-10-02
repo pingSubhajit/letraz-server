@@ -16,9 +16,14 @@ import type {
 	ListEducationsResponse,
 	ListExperiencesResponse,
 	ListProficienciesResponse,
+	ListProjectsResponse,
 	ListResumesParams,
 	ListResumesResponse,
 	ProficiencyResponse,
+	ProjectPathParams,
+	ProjectResponse,
+	ProjectUpsertRequest,
+	ProjectWithIdParams,
 	ResumeResponse,
 	SkillCategoriesResponse,
 	SkillPathParams,
@@ -29,6 +34,7 @@ import {ResumeService} from '@/services/resume/service'
 import {EducationService} from '@/services/resume/services/education.service'
 import {ExperienceService} from '@/services/resume/services/experience.service'
 import {SkillService} from '@/services/resume/services/skill.service'
+import {ProjectService} from '@/services/resume/services/project.service'
 
 /**
  * List all resumes for authenticated user
@@ -277,6 +283,67 @@ export const getAllSkillCategories = api(
 	{method: 'GET', path: '/skills/categories', auth: true, expose: true},
 	async (): Promise<GlobalSkillCategoriesResponse> => {
 		return SkillService.getAllCategories()
+	}
+)
+
+/**
+ * ==========================================
+ * PROJECT ENDPOINTS
+ * ==========================================
+ */
+
+/**
+ * List all projects for resume
+ * GET /resume/:resume_id/project
+ */
+export const listProjects = api(
+	{method: 'GET', path: '/resume/:resume_id/project', auth: true, expose: true},
+	async ({resume_id}: ProjectPathParams): Promise<ListProjectsResponse> => {
+		return ProjectService.listProjects({resume_id})
+	}
+)
+
+/**
+ * Get specific project
+ * GET /resume/:resume_id/project/:id
+ */
+export const getProject = api(
+	{method: 'GET', path: '/resume/:resume_id/project/:id', auth: true, expose: true},
+	async ({resume_id, id}: ProjectWithIdParams): Promise<ProjectResponse> => {
+		return ProjectService.getProjectById({resume_id, id})
+	}
+)
+
+/**
+ * Create project
+ * POST /resume/:resume_id/project
+ */
+export const createProject = api(
+	{method: 'POST', path: '/resume/:resume_id/project', auth: true, expose: true},
+	async ({resume_id, ...data}: ProjectPathParams & ProjectUpsertRequest): Promise<ProjectResponse> => {
+		return ProjectService.createProject({resume_id, ...data})
+	}
+)
+
+/**
+ * Update project
+ * PATCH /resume/:resume_id/project/:id
+ */
+export const updateProject = api(
+	{method: 'PATCH', path: '/resume/:resume_id/project/:id', auth: true, expose: true},
+	async ({resume_id, id, ...data}: ProjectWithIdParams & ProjectUpsertRequest): Promise<ProjectResponse> => {
+		return ProjectService.updateProject({resume_id, id, ...data})
+	}
+)
+
+/**
+ * Delete project
+ * DELETE /resume/:resume_id/project/:id
+ */
+export const deleteProject = api(
+	{method: 'DELETE', path: '/resume/:resume_id/project/:id', auth: true, expose: true},
+	async ({resume_id, id}: ProjectWithIdParams): Promise<void> => {
+		await ProjectService.deleteProject({resume_id, id})
 	}
 )
 
