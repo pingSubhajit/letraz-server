@@ -7,6 +7,8 @@ import {
 } from '@/services/resume/schema'
 import {PaginatedResponse, PaginationParams} from '@/services/utils/pagination'
 import {IsURL, Max, Min} from 'encore.dev/validate'
+import type {User} from '@/services/identity/interface'
+import type {Job} from '@/services/job/interface'
 
 /**
  * ==========================================
@@ -196,17 +198,38 @@ export interface ProjectWithSkills extends Omit<Project, 'created_at' | 'updated
 }
 
 /**
- * Education with Country
+ * Education with Country (clean response without internal fields)
  */
-export interface EducationWithCountry extends Omit<Education, 'created_at' | 'updated_at'> {
+export interface EducationWithCountry {
+	id: string
+	institution_name: string
+	field_of_study: string
+	degree: string | null
 	country: CountryReference | null
+	started_from_month: number | null
+	started_from_year: number | null
+	finished_at_month: number | null
+	finished_at_year: number | null
+	current: boolean
+	description: string | null
 }
 
 /**
- * Experience with Country
+ * Experience with Country (clean response without internal fields)
  */
-export interface ExperienceWithCountry extends Omit<Experience, 'created_at' | 'updated_at'> {
+export interface ExperienceWithCountry {
+	id: string
+	company_name: string
+	job_title: string
+	employment_type: EmploymentType
+	city: string | null
 	country: CountryReference | null
+	started_from_month: number | null
+	started_from_year: number | null
+	finished_at_month: number | null
+	finished_at_year: number | null
+	current: boolean
+	description: string | null
 }
 
 /**
@@ -233,14 +256,24 @@ export interface ResumeSectionWithData {
 }
 
 /**
+ * User data for resume response (aliased from identity service)
+ */
+export type ResumeUser = User
+
+/**
+ * Job data for resume response (aliased from job service)
+ */
+export type ResumeJob = Job
+
+/**
  * Full Resume Response
  * Complete resume with all nested sections
  */
 export interface ResumeWithSections {
 	id: string
-	user_id: string
-	job_id: string | null
 	base: boolean
+	user: ResumeUser
+	job: ResumeJob | null
 	status: ResumeStatus | null
 	thumbnail: string | null
 	sections: ResumeSectionWithData[]
@@ -255,8 +288,8 @@ export interface ResumeWithSections {
 export interface ResumeShort {
 	id: string
 	base: boolean
-	user_id: string
-	job_id: string | null
+	user: ResumeUser
+	job: ResumeJob | null
 	status: ResumeStatus | null
 	thumbnail: string | null
 	created_at: Date
@@ -318,11 +351,18 @@ export interface EducationUpsertRequest {
 }
 
 /**
- * Education Query Params
+ * Education Path Params (for list/create)
  */
-export interface EducationParams {
+export interface EducationPathParams {
 	resume_id: string
-	id?: string
+}
+
+/**
+ * Education Path Params with ID (for get/update/delete)
+ */
+export interface EducationWithIdParams {
+	resume_id: string
+	id: string
 }
 
 /**
