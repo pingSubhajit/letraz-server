@@ -3,8 +3,9 @@ import log from 'encore.dev/log'
 import {userCreated} from '@/services/identity/topics'
 import {jobScrapeFailed, jobScrapeSuccess} from '@/services/job/topics'
 import {db} from '@/services/resume/database'
-import {ProcessStatus, resumeProcesses, resumes, ResumeStatus} from '@/services/resume/schema'
-import {resumeTailoringFailed, resumeTailoringTriggered} from '@/services/resume/topics'
+import {ProcessStatus, resumeProcesses, resumes, ResumeSectionType, ResumeStatus} from '@/services/resume/schema'
+import {resumeTailoringFailed, resumeTailoringSuccess, resumeTailoringTriggered} from '@/services/resume/topics'
+import {BulkReplaceService} from '@/services/resume/services/bulk-replace.service'
 import {and, eq} from 'drizzle-orm'
 
 /**
@@ -194,14 +195,103 @@ const jobScrapeFailedListener = new Subscription(jobScrapeFailed, 'mark-resumes-
 
 /**
  * Resume Tailoring Triggered Event Listener
- * Placeholder handler for resume tailoring - will be implemented in future
- * Currently marks resumes as failed with "not implemented" error
+ * Processes resume tailoring requests by generating dummy tailored content
+ * TODO: Replace with actual AI-powered resume tailoring
  */
 const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTriggered, 'process-resume-tailoring', {
 	handler: async (event) => {
 		try {
-			// TODO: Implement actual resume tailoring logic
-			throw new Error('Resume tailoring feature is not implemented yet')
+			log.info('Resume tailoring started', {
+				resume_id: event.resume_id,
+				job_id: event.job_id,
+				process_id: event.process_id,
+				user_id: event.user_id
+			})
+
+			/*
+			 * TODO: Replace with actual AI-powered tailoring logic
+			 * For now, create dummy tailored resume sections
+			 */
+			const dummySections = [
+				{
+					type: ResumeSectionType.Experience,
+					data: {
+						company_name: 'Tech Company Inc.',
+						job_title: 'Senior Software Engineer',
+						employment_type: 'Full-Time',
+						city: 'San Francisco',
+						country_code: 'USA',
+						started_from_month: 1,
+						started_from_year: 2020,
+						finished_at_month: null,
+						finished_at_year: null,
+						current: true,
+						description:
+							'Led development of microservices architecture. Implemented CI/CD pipelines. Mentored junior developers.'
+					}
+				},
+				{
+					type: ResumeSectionType.Education,
+					data: {
+						institution_name: 'State University',
+						field_of_study: 'Computer Science',
+						degree: 'Bachelor of Science',
+						country_code: 'USA',
+						started_from_month: 9,
+						started_from_year: 2015,
+						finished_at_month: 5,
+						finished_at_year: 2019,
+						current: false,
+						description: 'Focus on software engineering and distributed systems.'
+					}
+				},
+				{
+					type: ResumeSectionType.Skill,
+					data: {
+						skills: [
+							{name: 'TypeScript', category: 'Programming Language', level: 'Expert'},
+							{name: 'React', category: 'Framework', level: 'Advanced'},
+							{name: 'Node.js', category: 'Runtime', level: 'Expert'}
+						]
+					}
+				}
+			]
+
+			// Replace resume sections with dummy tailored content
+			await BulkReplaceService.replaceResumeInternal(event.user_id, event.resume_id, dummySections)
+
+			// Update resume status to success
+			await db
+				.update(resumes)
+				.set({
+					status: ResumeStatus.Success
+				})
+				.where(eq(resumes.id, event.resume_id))
+
+			// Update resume process status to success
+			await db
+				.update(resumeProcesses)
+				.set({
+					status: ProcessStatus.Success,
+					status_details: 'Resume tailored successfully (dummy data)'
+				})
+				.where(eq(resumeProcesses.id, event.process_id))
+
+			// Publish resume tailoring success event
+			await resumeTailoringSuccess.publish({
+				resume_id: event.resume_id,
+				job_id: event.job_id,
+				process_id: event.process_id,
+				user_id: event.user_id,
+				completed_at: new Date()
+			})
+
+			log.info('Resume tailoring completed successfully', {
+				resume_id: event.resume_id,
+				job_id: event.job_id,
+				process_id: event.process_id,
+				user_id: event.user_id
+			})
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error'
 
@@ -222,7 +312,7 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 					})
 					.where(eq(resumes.id, event.resume_id))
 
-				// Update resume process status if present
+				// Update resume process status to failed
 				await db
 					.update(resumeProcesses)
 					.set({

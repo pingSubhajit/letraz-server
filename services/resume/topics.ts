@@ -40,3 +40,22 @@ export const resumeTailoringFailed = new Topic<ResumeTailoringFailedEvent>('resu
 	deliveryGuarantee: 'at-least-once'
 })
 
+/**
+ * Resume Tailoring Success Event
+ * Published when a resume tailoring process completes successfully
+ */
+export interface ResumeTailoringSuccessEvent {
+	resume_id: string
+	job_id: string
+	process_id: string
+	user_id: string
+	completed_at: Date
+}
+
+/**
+ * Resume Tailoring Success Topic
+ */
+export const resumeTailoringSuccess = new Topic<ResumeTailoringSuccessEvent>('resume-tailoring-success', {
+	deliveryGuarantee: 'at-least-once'
+})
+

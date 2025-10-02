@@ -397,6 +397,271 @@ export const ResumeService = {
 	},
 
 	/**
+	 * Internal version of getResumeById that skips auth checks
+	 * Used by event handlers and internal services where access is already validated
+	 */
+	async getResumeByIdInternal(resumeId: string): Promise<ResumeWithSections> {
+		// Fetch resume (skip ownership verification)
+		const resumeQuery = await db.select().from(resumes).where(eq(resumes.id, resumeId)).limit(1)
+
+		if (resumeQuery.length === 0) {
+			throw APIError.notFound(`Resume with ID '${resumeId}' not found`)
+		}
+
+		const resume = resumeQuery[0]
+
+		// Fetch user data
+		const user = await this.fetchUserData(resume.user_id)
+
+		// Fetch job data if linked
+		const jobData = resume.job_id ? await this.fetchJobData(resume.job_id) : null
+
+		// Fetch all sections
+		const sections = await db
+			.select()
+			.from(resumeSections)
+			.where(eq(resumeSections.resume_id, resumeId))
+			.orderBy(resumeSections.index)
+
+		// Collect all skill IDs and country codes for batch fetching
+		const skillIds = new Set<string>()
+		const countryCodes = new Set<string>()
+
+		for (const section of sections) {
+			if (section.type === 'Skill') {
+				const proficiencyData = await db
+					.select()
+					.from(proficiencies)
+					.where(eq(proficiencies.resume_section_id, section.id))
+				proficiencyData.forEach(p => skillIds.add(p.skill_id))
+			} else if (section.type === 'Project') {
+				const projectData = await db.select().from(projects).where(eq(projects.resume_section_id, section.id))
+				for (const proj of projectData) {
+					const projSkills = await db
+						.select({skill_id: projectSkills.skill_id})
+						.from(projectSkills)
+						.where(eq(projectSkills.project_id, proj.id))
+					projSkills.forEach(ps => skillIds.add(ps.skill_id))
+				}
+			} else if (section.type === 'Education') {
+				const eduData = await db.select().from(educations).where(eq(educations.resume_section_id, section.id))
+				eduData.forEach(e => {
+					if (e.country_code) countryCodes.add(e.country_code)
+				})
+			} else if (section.type === 'Experience') {
+				const expData = await db.select().from(experiences).where(eq(experiences.resume_section_id, section.id))
+				expData.forEach(e => {
+					if (e.country_code) countryCodes.add(e.country_code)
+				})
+			}
+		}
+
+		// Batch fetch all skills
+		const skillMap = new Map<string, any>()
+		if (skillIds.size > 0) {
+			const skillsData = await db
+				.select()
+				.from(skills)
+				.where(inArray(skills.id, Array.from(skillIds)))
+			skillsData.forEach(s => skillMap.set(s.id, s))
+		}
+
+		// Batch fetch all countries
+		const countryMap = await this.batchLookupCountries(Array.from(countryCodes))
+
+		// Build sections with data
+		const sectionsWithData = await Promise.all(
+			sections.map(async section => {
+				let data: any
+
+				switch (section.type) {
+					case 'Education': {
+						const eduQuery = await db
+							.select()
+							.from(educations)
+							.where(eq(educations.resume_section_id, section.id))
+							.limit(1)
+
+						if (eduQuery.length > 0) {
+							const edu = eduQuery[0]
+							const country = edu.country_code ? countryMap.get(edu.country_code) || null : null
+
+							data = {
+								education: {
+									id: edu.id,
+									institution_name: edu.institution_name,
+									field_of_study: edu.field_of_study,
+									degree: edu.degree,
+									country,
+									started_from_month: edu.started_from_month,
+									started_from_year: edu.started_from_year,
+									finished_at_month: edu.finished_at_month,
+									finished_at_year: edu.finished_at_year,
+									current: edu.current,
+									description: edu.description
+								}
+							}
+						}
+						break
+					}
+
+					case 'Experience': {
+						const expQuery = await db
+							.select()
+							.from(experiences)
+							.where(eq(experiences.resume_section_id, section.id))
+							.limit(1)
+
+						if (expQuery.length > 0) {
+							const exp = expQuery[0]
+							const country = exp.country_code ? countryMap.get(exp.country_code) || null : null
+
+							data = {
+								experience: {
+									id: exp.id,
+									company_name: exp.company_name,
+									job_title: exp.job_title,
+									employment_type: exp.employment_type,
+									city: exp.city,
+									country,
+									started_from_month: exp.started_from_month,
+									started_from_year: exp.started_from_year,
+									finished_at_month: exp.finished_at_month,
+									finished_at_year: exp.finished_at_year,
+									current: exp.current,
+									description: exp.description
+								}
+							}
+						}
+						break
+					}
+
+					case 'Skill': {
+						const proficiencyRecords = await db
+							.select()
+							.from(proficiencies)
+							.where(eq(proficiencies.resume_section_id, section.id))
+
+						const proficienciesWithSkills = proficiencyRecords.map(prof => {
+							const skill = skillMap.get(prof.skill_id)
+							if (!skill) {
+								throw APIError.internal(`Skill not found for proficiency ${prof.id}`)
+							}
+							return {
+								id: prof.id,
+								skill: {
+									id: skill.id,
+									name: skill.name,
+									category: skill.category,
+									preferred: skill.preferred,
+									created_at: skill.created_at,
+									updated_at: skill.updated_at
+								},
+								level: prof.level
+							}
+						})
+
+						data = {skills: proficienciesWithSkills}
+						break
+					}
+
+					case 'Project': {
+						const projectQuery = await db
+							.select()
+							.from(projects)
+							.where(eq(projects.resume_section_id, section.id))
+							.limit(1)
+
+						if (projectQuery.length > 0) {
+							const proj = projectQuery[0]
+							const projSkillIds = await db
+								.select({skill_id: projectSkills.skill_id})
+								.from(projectSkills)
+								.where(eq(projectSkills.project_id, proj.id))
+
+							const skillsUsed = projSkillIds
+								.map(ps => skillMap.get(ps.skill_id))
+								.filter(s => s != null)
+								.map(s => ({
+									id: s.id,
+									name: s.name,
+									category: s.category,
+									preferred: s.preferred,
+									created_at: s.created_at,
+									updated_at: s.updated_at
+								}))
+
+							data = {
+								project: {
+									id: proj.id,
+									name: proj.name,
+									category: proj.category,
+									description: proj.description,
+									role: proj.role,
+									github_url: proj.github_url,
+									live_url: proj.live_url,
+									started_from_month: proj.started_from_month,
+									started_from_year: proj.started_from_year,
+									finished_at_month: proj.finished_at_month,
+									finished_at_year: proj.finished_at_year,
+									current: proj.current,
+									skills_used: skillsUsed
+								}
+							}
+						}
+						break
+					}
+
+					case 'Certification': {
+						const certQuery = await db
+							.select()
+							.from(certifications)
+							.where(eq(certifications.resume_section_id, section.id))
+							.limit(1)
+
+						if (certQuery.length > 0) {
+							const cert = certQuery[0]
+							data = {
+								certification: {
+									id: cert.id,
+									name: cert.name,
+									issuing_organization: cert.issuing_organization,
+									issue_date: cert.issue_date,
+									credential_url: cert.credential_url
+								}
+							}
+						}
+						break
+					}
+
+					default:
+						data = {}
+				}
+
+				return {
+					id: section.id,
+					resume_id: section.resume_id,
+					index: section.index,
+					type: section.type,
+					data
+				}
+			})
+		)
+
+		return {
+			id: resume.id,
+			base: resume.base,
+			user,
+			job: jobData,
+			status: resume.status,
+			thumbnail: resume.thumbnail,
+			sections: sectionsWithData,
+			created_at: resume.created_at,
+			updated_at: resume.updated_at
+		}
+	},
+
+	/**
 	 * Delete resume by ID
 	 * Cannot delete base resume
 	 */

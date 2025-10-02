@@ -3,14 +3,15 @@ import {Subscription} from 'encore.dev/pubsub'
 import {waitlistSubmitted} from '@/services/core/topics'
 import {getKnock} from '@/services/notifications/knock'
 import {userCreated} from '@/services/identity/topics'
-import {resumeTailoringFailed} from '@/services/resume/topics'
+import {resumeTailoringFailed, resumeTailoringSuccess} from '@/services/resume/topics'
 import {jobs} from '@/services/job/schema'
 import {eq} from 'drizzle-orm'
 import {db as jobDb} from '@/services/job/database'
 import {KnockWorkflows} from '@/services/notifications/workflows'
+import {secret} from 'encore.dev/config'
 
 // Constants
-const CLIENT_URL = 'https://app.letraz.com' // TODO: Move to environment config
+const CLIENT_URL = secret('ClientUrl')()
 
 const waitlistSubmittedEventListener = new Subscription(waitlistSubmitted, 'add-user-to-knock-from-waitlist', {
 	handler: async (event) => {
@@ -81,16 +82,15 @@ const resumeTailoringFailedEventListener = new Subscription(resumeTailoringFaile
 				return
 			}
 
-			await knock.workflows.trigger(KnockWorkflows.JOB_SCRAPE_FAILED, {
+			await knock.workflows.trigger(KnockWorkflows.RESUME_TAILORED_FAILED, {
 				recipients: [event.user_id],
 				data: {
 					resume_id: event.resume_id,
-					process_id: event.process_id,
+					job_id: event.job_id,
 					reason: event.error_message,
-					cta_url: `${CLIENT_URL}/app?input=true`,
-					job_title: job.title !== '<EXTRACTION_FAILED>' ? job.title : null,
-					company_name: job.company_name !== '<EXTRACTION_FAILED>' ? job.company_name : null,
-					failed_at: event.failed_at.toISOString()
+					report_url: `${CLIENT_URL}/app/support?resumeId=${event.resume_id}`,
+					job_title: job?.title !== '<EXTRACTION_FAILED>' ? job.title : null,
+					company_name: job?.company_name !== '<EXTRACTION_FAILED>' ? job.company_name : null
 				}
 			})
 
@@ -102,6 +102,68 @@ const resumeTailoringFailedEventListener = new Subscription(resumeTailoringFaile
 			})
 		} catch (err) {
 			log.error(err as Error, 'Failed to send resume-tailoring-failed notification', {
+				resume_id: event.resume_id,
+				job_id: event.job_id,
+				process_id: event.process_id,
+				user_id: event.user_id
+			})
+		}
+	}
+})
+
+/**
+ * Resume Tailoring Success Event Listener
+ * Triggers Knock workflow to notify user about successful resume tailoring
+ */
+const resumeTailoringSuccessEventListener = new Subscription(resumeTailoringSuccess, 'notify-resume-tailoring-success', {
+	handler: async (event) => {
+		const knock = getKnock()
+		if (!knock) {
+			log.warn('Knock not configured; dropping resume-tailoring-success event', {
+				resume_id: event.resume_id,
+				user_id: event.user_id
+			})
+			return
+		}
+
+		try {
+			// Fetch the job to get additional context for the notification
+			const [job] = await jobDb
+				.select()
+				.from(jobs)
+				.where(eq(jobs.id, event.job_id))
+				.limit(1)
+
+			if (!job) {
+				log.warn('Job not found for resume tailoring success notification', {
+					job_id: event.job_id,
+					resume_id: event.resume_id
+				})
+				// Continue anyway - notification can work without job details
+			}
+
+			// Trigger Knock workflow for resume tailoring success
+			await knock.workflows.trigger(KnockWorkflows.RESUME_TAILORED, {
+				recipients: [event.user_id],
+				data: {
+					resume_id: event.resume_id,
+					job_id: event.job_id,
+					cta_url: `${CLIENT_URL}/app/craft/resumes/${event.resume_id}`,
+					job_title: job?.title !== '<EXTRACTION_FAILED>' ? job.title : null,
+					company_name: job?.company_name !== '<EXTRACTION_FAILED>' ? job.company_name : null
+				}
+			})
+
+			log.info('Resume tailoring success notification sent', {
+				resume_id: event.resume_id,
+				job_id: event.job_id,
+				process_id: event.process_id,
+				user_id: event.user_id,
+				job_title: job?.title,
+				company_name: job?.company_name
+			})
+		} catch (err) {
+			log.error(err as Error, 'Failed to process resume-tailoring-success event', {
 				resume_id: event.resume_id,
 				job_id: event.job_id,
 				process_id: event.process_id,

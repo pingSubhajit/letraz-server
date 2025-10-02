@@ -469,13 +469,14 @@ const SectionCreators = {
  */
 export const BulkReplaceService = {
 	/**
-	 * Replace all sections of a resume
-	 * Uses transaction for atomicity
+	 * Internal version of replaceResume for use in event handlers
+	 * Accepts userId and resumeId directly instead of getting from auth context
 	 */
-	replaceResume: async ({id, sections}: ReplaceResumeRequest): Promise<ResumeWithSections> => {
-		const userId = ResumeService.getAuthenticatedUserId()
-		const resumeId = await ResumeService.resolveResumeId(id)
-		await ResumeService.verifyResumeOwnership(resumeId)
+	replaceResumeInternal: async (
+		userId: string,
+		resumeId: string,
+		sections: SectionReplaceInput[]
+	): Promise<ResumeWithSections> => {
 
 		// Phase 1: Validate ALL data before transaction
 		sections.forEach((section, idx) => {
@@ -570,8 +571,20 @@ export const BulkReplaceService = {
 			}
 		})
 
-		// Phase 5: Return updated resume
-		return ResumeService.getResumeById({id: resumeId})
+		// Phase 5: Return updated resume (skip auth checks - already validated)
+		return ResumeService.getResumeByIdInternal(resumeId)
+	},
+
+	/**
+	 * Public API version of replaceResume
+	 * Gets userId from auth context and verifies ownership
+	 */
+	replaceResume: async ({id, sections}: ReplaceResumeRequest): Promise<ResumeWithSections> => {
+		const userId = ResumeService.getAuthenticatedUserId()
+		const resumeId = await ResumeService.resolveResumeId(id)
+		await ResumeService.verifyResumeOwnership(resumeId)
+
+		return BulkReplaceService.replaceResumeInternal(userId, resumeId, sections)
 	}
 }
 
