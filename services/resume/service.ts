@@ -603,6 +603,10 @@ export const ResumeService = {
 	/**
 	 * Tailor resume for a job
 	 * Creates or retrieves a job-specific resume and initiates tailoring process
+	 *
+	 * Retry Logic:
+	 * - If job scraping previously failed, retries by calling scrapeJob again
+	 * - If resume tailoring previously failed, creates new process and resets status
 	 */
 	async tailorResume({target}: TailorResumeRequest): Promise<TailorResumeResponse> {
 		const userId = this.getAuthenticatedUserId()
@@ -627,8 +631,86 @@ export const ResumeService = {
 			.limit(1)
 
 		if (existingResumeQuery.length > 0) {
-			// Resume already exists - return it (no event)
-			const fullResume = await this.getResumeById({id: existingResumeQuery[0].id})
+			const existingResume = existingResumeQuery[0]
+
+			// If existing resume failed, retry by resetting it
+			if (existingResume.status === ResumeStatus.Failure) {
+				log.info('Existing resume failed, retrying tailoring', {
+					resume_id: existingResume.id,
+					job_id: scrapedJob.id,
+					user_id: userId
+				})
+
+				// Create a new resume process for the retry
+				const [newResumeProcess] = await db
+					.insert(resumeProcesses)
+					.values({
+						desc: 'Retrying resume tailoring for job',
+						status: ProcessStatus.Initiated,
+						status_details: null
+					})
+					.returning()
+
+				// Update resume: reset status, detach old process, attach new process
+				await db
+					.update(resumes)
+					.set({
+						status: ResumeStatus.Processing,
+						process_id: newResumeProcess.id
+					})
+					.where(eq(resumes.id, existingResume.id))
+
+				log.info('Resume reset for retry', {
+					resume_id: existingResume.id,
+					old_process_id: existingResume.process_id,
+					new_process_id: newResumeProcess.id,
+					user_id: userId
+				})
+
+				// Conditionally publish event based on job status
+				if (scrapedJob.status === JobStatus.Success) {
+					try {
+						await resumeTailoringTriggered.publish({
+							resume_id: existingResume.id,
+							job_id: scrapedJob.id,
+							process_id: newResumeProcess.id,
+							user_id: userId,
+							job_url: jobUrl,
+							triggered_at: new Date()
+						})
+
+						log.info('Resume tailoring triggered event published (retry, job ready)', {
+							resume_id: existingResume.id,
+							job_id: scrapedJob.id,
+							user_id: userId
+						})
+					} catch (error) {
+						const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+						log.error('Failed to publish resume tailoring triggered event', {
+							resume_id: existingResume.id,
+							job_id: scrapedJob.id,
+							user_id: userId,
+							error: errorMessage
+						})
+					}
+				} else {
+					log.info('Resume retry initiated, waiting for job scraping', {
+						resume_id: existingResume.id,
+						job_id: scrapedJob.id,
+						job_status: scrapedJob.status,
+						user_id: userId
+					})
+				}
+
+				// Return the updated resume
+				const fullResume = await this.getResumeById({id: existingResume.id})
+				return {
+					resume: fullResume
+				}
+			}
+
+			// Resume exists and is not failed - return it as-is
+			const fullResume = await this.getResumeById({id: existingResume.id})
 			return {
 				resume: fullResume
 			}

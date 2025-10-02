@@ -192,3 +192,69 @@ const jobScrapeFailedListener = new Subscription(jobScrapeFailed, 'mark-resumes-
 	}
 })
 
+/**
+ * Resume Tailoring Triggered Event Listener
+ * Placeholder handler for resume tailoring - will be implemented in future
+ * Currently marks resumes as failed with "not implemented" error
+ */
+const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTriggered, 'process-resume-tailoring', {
+	handler: async (event) => {
+		try {
+			// TODO: Implement actual resume tailoring logic
+			throw new Error('Resume tailoring feature is not implemented yet')
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+
+			log.error(err as Error, 'Resume tailoring failed', {
+				resume_id: event.resume_id,
+				job_id: event.job_id,
+				process_id: event.process_id,
+				user_id: event.user_id,
+				error: errorMessage
+			})
+
+			try {
+				// Update resume status to failed
+				await db
+					.update(resumes)
+					.set({
+						status: ResumeStatus.Failure
+					})
+					.where(eq(resumes.id, event.resume_id))
+
+				// Update resume process status if present
+				await db
+					.update(resumeProcesses)
+					.set({
+						status: ProcessStatus.Failed,
+						status_details: errorMessage
+					})
+					.where(eq(resumeProcesses.id, event.process_id))
+
+				// Publish resume tailoring failed event
+				await resumeTailoringFailed.publish({
+					resume_id: event.resume_id,
+					job_id: event.job_id,
+					process_id: event.process_id,
+					user_id: event.user_id,
+					error_message: errorMessage,
+					failed_at: new Date()
+				})
+
+				log.info('Resume marked as failed after tailoring error', {
+					resume_id: event.resume_id,
+					job_id: event.job_id,
+					user_id: event.user_id,
+					error: errorMessage
+				})
+			} catch (cleanupErr) {
+				const cleanupErrorMessage = cleanupErr instanceof Error ? cleanupErr.message : 'Unknown error'
+				log.error(cleanupErr as Error, 'Failed to clean up resume after tailoring error', {
+					resume_id: event.resume_id,
+					job_id: event.job_id,
+					error: cleanupErrorMessage
+				})
+			}
+		}
+	}
+})
