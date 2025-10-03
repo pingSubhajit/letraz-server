@@ -1,6 +1,6 @@
 import log from 'encore.dev/log'
 import {Subscription} from 'encore.dev/pubsub'
-import {waitlistSubmitted} from '@/services/core/topics'
+import {waitlistAccessGranted, waitlistSubmitted} from '@/services/core/topics'
 import {getKnock} from '@/services/notifications/knock'
 import {userCreated} from '@/services/identity/topics'
 import {resumeTailoringFailed, resumeTailoringSuccess} from '@/services/resume/topics'
@@ -198,6 +198,69 @@ const resumeTailoringSuccessEventListener = new Subscription(resumeTailoringSucc
 				job_id: event.job_id,
 				process_id: event.process_id,
 				user_id: event.user_id
+			})
+		}
+	}
+})
+
+/**
+ * Waitlist Access Granted Event Listener
+ * Triggers Knock workflow to send welcome-flow when user is granted access
+ */
+const waitlistAccessGrantedEventListener = new Subscription(waitlistAccessGranted, 'trigger-welcome-flow', {
+	handler: async (event) => {
+		const knock = getKnock()
+		if (!knock) {
+			log.warn('Knock not configured; dropping waitlist-access-granted event', {
+				waitlist_id: event.id,
+				email: event.email
+			})
+			return
+		}
+
+		try {
+			addBreadcrumb('Triggering welcome-flow workflow', {
+				waitlist_id: event.id,
+				email: event.email
+			}, 'pubsub')
+
+			/*
+			 * Trigger the welcome-flow workflow
+			 * Use the waitlist entry ID as the user ID for Knock
+			 */
+			await knock.workflows.trigger(KnockWorkflows.WELCOME_FLOW, {
+				recipients: [event.email],
+				data: {
+					email: event.email,
+					waiting_number: event.waiting_number,
+					referrer: event.referrer
+				}
+			})
+
+			log.info('Welcome-flow workflow triggered successfully', {
+				waitlist_id: event.id,
+				email: event.email,
+				waiting_number: event.waiting_number
+			})
+		} catch (err) {
+			log.error(err as Error, 'Failed to trigger welcome-flow workflow', {
+				waitlist_id: event.id,
+				email: event.email
+			})
+
+			// Report to Sentry for monitoring
+			captureException(err, {
+				tags: {
+					operation: 'knock-workflow-trigger',
+					event_type: 'waitlist-access-granted',
+					workflow: 'welcome-flow'
+				},
+				extra: {
+					waitlist_id: event.id,
+					email: event.email,
+					event
+				},
+				level: 'error'
 			})
 		}
 	}

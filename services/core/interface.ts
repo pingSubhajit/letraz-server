@@ -73,6 +73,52 @@ export interface WaitlistSubmittedEvent {
 }
 
 /**
+ * Request parameters for updating a waitlist entry
+ */
+export interface UpdateWaitlistParams {
+	/** Waitlist entry ID */
+	id: string
+	/** Whether the user has been granted access */
+	has_access?: boolean
+}
+
+/**
+ * Request parameters for bulk updating waitlist entries
+ */
+export interface BulkUpdateWaitlistParams {
+	/** List of waitlist entry IDs to update */
+	waitlist_ids: string[]
+	/** Whether to grant or revoke access for the selected users */
+	has_access: boolean
+}
+
+/**
+ * Response for bulk update waitlist operation
+ */
+export interface BulkUpdateWaitlistResponse {
+	/** Number of entries updated */
+	updated_count: number
+	/** Updated waitlist entries */
+	entries: WaitlistResponse[]
+}
+
+/**
+ * Event payload published when a waitlist user is granted access
+ */
+export interface WaitlistAccessGrantedEvent {
+	/** Waitlist entry ID */
+	id: string
+	/** Email of the user granted access */
+	email: string
+	/** Sequential position in the waitlist */
+	waiting_number: number
+	/** Referrer/source of the waitlist entry */
+	referrer: string
+	/** Timestamp when access was granted */
+	granted_at: string
+}
+
+/**
  * Country object representing a country in the system
  */
 export interface Country {

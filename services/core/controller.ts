@@ -4,6 +4,8 @@ import {
 	AddToWaitlistParams,
 	AllWaitlistParams,
 	AllWaitlistResponse,
+	BulkUpdateWaitlistParams,
+	BulkUpdateWaitlistResponse,
 	Country,
 	CreateCountryParams,
 	GetCountryParams,
@@ -11,6 +13,7 @@ import {
 	ListCountriesParams,
 	ListCountriesResponse,
 	RemoveFromWaitlistParams,
+	UpdateWaitlistParams,
 	WaitlistResponse
 } from '@/services/core/interface'
 import {CoreService} from '@/services/core/service'
@@ -46,12 +49,44 @@ export const addToWaitlist = api({
 /**
  * Lists waitlist entries with pagination. Supports page, page_size, and
  * order (asc|desc). Returns a paginated collection with metadata including
- * total, has_next, and has_prev. Accessible at GET /waitlist.
+ * total, has_next, and has_prev.
+ *
+ * Admin endpoint - requires x-admin-api-key header for authentication.
+ * Accessible at GET /admin/waitlist
  */
 export const getAllWaitlist = api({
-	method: 'GET', path: '/waitlist'
+	method: 'GET', path: '/admin/waitlist', auth: true, expose: true
 }, async (params: AllWaitlistParams): Promise<AllWaitlistResponse> => {
 	return CoreService.getAllWaitlist(params)
+})
+
+/**
+ * Update a waitlist entry by ID
+ * Allows updating the has_access field. When has_access changes from false to true,
+ * emits a waitlist-access-granted event that triggers the welcome-flow workflow.
+ *
+ * Admin endpoint - requires x-admin-api-key header for authentication.
+ * Accessible at POST /admin/waitlist/:id
+ */
+export const updateWaitlist = api({
+	method: 'POST', path: '/admin/waitlist/:id', auth: true, expose: true
+}, async (params: UpdateWaitlistParams): Promise<WaitlistResponse> => {
+	return CoreService.updateWaitlist(params)
+})
+
+/**
+ * Bulk update waitlist entries
+ * Updates multiple waitlist entries at once. Validates that all IDs exist before updating.
+ * When has_access changes from false to true, emits waitlist-access-granted events
+ * for each affected entry that triggers the welcome-flow workflow.
+ *
+ * Admin endpoint - requires x-admin-api-key header for authentication.
+ * Accessible at POST /admin/waitlist/bulk-update
+ */
+export const bulkUpdateWaitlist = api({
+	method: 'POST', path: '/admin/waitlist/bulk-update', auth: true, expose: true
+}, async (params: BulkUpdateWaitlistParams): Promise<BulkUpdateWaitlistResponse> => {
+	return CoreService.bulkUpdateWaitlist(params)
 })
 
 /**

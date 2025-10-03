@@ -2,16 +2,19 @@ import {
 	AddToWaitlistParams,
 	AllWaitlistParams,
 	AllWaitlistResponse,
+	BulkUpdateWaitlistParams,
+	BulkUpdateWaitlistResponse,
 	Country,
 	CreateCountryParams,
 	ListCountriesParams,
 	ListCountriesResponse,
+	UpdateWaitlistParams,
 	WaitlistResponse
 } from '@/services/core/interface'
 import {db} from '@/services/core/database'
 import {countries, waitlist} from '@/services/core/schema'
-import {waitlistSubmitted} from '@/services/core/topics'
-import {asc, count, desc, eq, ilike} from 'drizzle-orm'
+import {waitlistAccessGranted, waitlistSubmitted} from '@/services/core/topics'
+import {asc, count, desc, eq, ilike, inArray} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 
 export const CoreService = {
@@ -58,6 +61,108 @@ export const CoreService = {
 	},
 	removeFromWaitlist: async (email: string): Promise<void> => {
 		await db.delete(waitlist).where(eq(waitlist.email, email))
+	},
+
+	/**
+	 * Update a waitlist entry by ID
+	 * When has_access is changed from false to true, emits waitlist-access-granted event
+	 */
+	updateWaitlist: async ({id, has_access}: UpdateWaitlistParams): Promise<WaitlistResponse> => {
+		// First, fetch the existing entry
+		const [existingEntry] = await db.select().from(waitlist).where(eq(waitlist.id, id)).limit(1)
+
+		if (!existingEntry) {
+			throw APIError.notFound(`Waitlist entry with id '${id}' not found`)
+		}
+
+		// Track if access is being granted
+		const accessGranted = !existingEntry.has_access && has_access === true
+
+		// Update the entry
+		const [updatedEntry] = await db
+			.update(waitlist)
+			.set({has_access})
+			.where(eq(waitlist.id, id))
+			.returning()
+
+		// If access was granted, publish the event
+		if (accessGranted) {
+			await waitlistAccessGranted.publish({
+				id: updatedEntry.id,
+				email: updatedEntry.email,
+				waiting_number: updatedEntry.waiting_number,
+				referrer: updatedEntry.referrer,
+				granted_at: new Date().toISOString()
+			})
+		}
+
+		return updatedEntry
+	},
+
+	/**
+	 * Bulk update waitlist entries by IDs
+	 * Validates all IDs exist before updating. Emits waitlist-access-granted events
+	 * for entries where has_access changes from false to true.
+	 */
+	bulkUpdateWaitlist: async ({waitlist_ids, has_access}: BulkUpdateWaitlistParams): Promise<BulkUpdateWaitlistResponse> => {
+		// Validate that waitlist_ids is not empty
+		if (!waitlist_ids || waitlist_ids.length === 0) {
+			throw APIError.invalidArgument('waitlist_ids cannot be empty')
+		}
+
+		// Fetch all existing entries
+		const existingEntries = await db
+			.select()
+			.from(waitlist)
+			.where(inArray(waitlist.id, waitlist_ids))
+
+		// Check if all IDs were found
+		const foundIds = new Set(existingEntries.map(entry => entry.id))
+		const missingIds = waitlist_ids.filter(id => !foundIds.has(id))
+
+		if (missingIds.length > 0) {
+			throw APIError.notFound(
+				`Some waitlist entries not found. Missing IDs: ${missingIds.join(', ')}`
+			)
+		}
+
+		// Find entries that will have access granted (currently false, will become true)
+		const entriesToGrantAccess = has_access === true
+			? existingEntries.filter(entry => !entry.has_access)
+			: []
+
+		// Perform bulk update
+		await db
+			.update(waitlist)
+			.set({has_access})
+			.where(inArray(waitlist.id, waitlist_ids))
+
+		// Fetch updated entries
+		const updatedEntries = await db
+			.select()
+			.from(waitlist)
+			.where(inArray(waitlist.id, waitlist_ids))
+
+		// Emit events for entries that were granted access
+		if (entriesToGrantAccess.length > 0) {
+			const grantedAt = new Date().toISOString()
+
+			// Publish events for all entries that had access granted
+			await Promise.all(
+				entriesToGrantAccess.map(entry => waitlistAccessGranted.publish({
+					id: entry.id,
+					email: entry.email,
+					waiting_number: entry.waiting_number,
+					referrer: entry.referrer,
+					granted_at: grantedAt
+				}))
+			)
+		}
+
+		return {
+			updated_count: updatedEntries.length,
+			entries: updatedEntries
+		}
 	},
 
 	/**
