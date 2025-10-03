@@ -1,4 +1,5 @@
 import {APIError} from 'encore.dev/api'
+import {secret} from 'encore.dev/config'
 import {getAuthData} from '~encore/auth'
 import {db} from '@/services/resume/database'
 import {
@@ -24,6 +25,8 @@ import {
 } from '@/services/resume/schema'
 import {
 	DeleteResumeParams,
+	ExportResumeParams,
+	ExportResumeResponse,
 	GetResumeParams,
 	ListResumesParams,
 	ListResumesResponse,
@@ -39,6 +42,9 @@ import {and, count, desc, eq, inArray, max} from 'drizzle-orm'
 import {core, job} from '~encore/clients'
 import {JobStatus} from '@/services/job/schema'
 import log from 'encore.dev/log'
+
+// Secret for util service endpoint
+const UtilServiceEndpoint = secret('UtilServiceEndpoint')
 
 /**
  * Resume Service
@@ -1135,6 +1141,123 @@ export const ResumeService = {
 
 		return {
 			resume: fullResume
+		}
+	},
+
+	/**
+	 * Export resume to PDF and LaTeX
+	 * Calls the util service to generate export files
+	 */
+	async exportResume({id}: ExportResumeParams): Promise<ExportResumeResponse> {
+		// Fetch the full resume with all sections
+		const resumeWithSections = await this.getResumeById({id})
+
+		// Fetch user's country if country_id exists
+		let userCountry: Country | null = null
+		if (resumeWithSections.user.country_id) {
+			try {
+				userCountry = await this.lookupCountry(resumeWithSections.user.country_id.toString())
+			} catch (error) {
+				// Country lookup failed, log but continue with null
+				log.warn('Failed to lookup user country for export', {
+					user_id: resumeWithSections.user.id,
+					country_id: resumeWithSections.user.country_id
+				})
+			}
+		}
+
+		/*
+		 * Transform resume data to match util service expected format
+		 * Only transform fields that have different structure (like job salary)
+		 */
+		const exportPayload = {
+			resume: {
+				...resumeWithSections,
+				user: {
+					...resumeWithSections.user,
+					country: userCountry // Include fetched country object
+				},
+				job: resumeWithSections.job
+					? {
+						...resumeWithSections.job,
+						salary: {
+							max: resumeWithSections.job.salary_max,
+							min: resumeWithSections.job.salary_min,
+							currency: resumeWithSections.job.currency
+						}
+					}
+					: null,
+				sections: resumeWithSections.sections.map(section => ({
+					...section,
+					resume: section.resume_id // Util service expects 'resume' instead of 'resume_id'
+				}))
+			},
+			theme: 'DEFAULT_THEME'
+		}
+
+		log.info('Exporting resume', {
+			resume_id: resumeWithSections.id,
+			user_id: resumeWithSections.user.id,
+			sections_count: resumeWithSections.sections.length,
+			user_has_country: !!userCountry
+		})
+
+		// Call util service export endpoint
+		try {
+			const utilEndpoint = UtilServiceEndpoint()
+			const response = await fetch(`${utilEndpoint}/resume/export`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(exportPayload)
+			})
+
+			if (!response.ok) {
+				throw new Error(`Util service responded with status ${response.status}`)
+			}
+
+			const result = await response.json() as {
+				status: string
+				message?: string
+				pdf_url?: string
+				latex_url?: string
+			}
+
+			// Check if export failed
+			if (result.status === 'FAILURE') {
+				throw APIError.internal(`Export failed: ${result.message || 'Unknown error'}`)
+			}
+
+			// Validate response has required URLs
+			if (!result.pdf_url || !result.latex_url) {
+				throw APIError.internal('Export response missing PDF or LaTeX URL')
+			}
+
+			log.info('Resume export completed successfully', {
+				resume_id: resumeWithSections.id,
+				user_id: resumeWithSections.user.id,
+				pdf_url: result.pdf_url,
+				latex_url: result.latex_url
+			})
+
+			return {
+				pdf_url: result.pdf_url,
+				latex_url: result.latex_url
+			}
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+			log.error(error as Error, 'Failed to export resume', {
+				resume_id: resumeWithSections.id,
+				user_id: resumeWithSections.user.id,
+				error: errorMessage
+			})
+
+			if (error instanceof APIError) {
+				throw error
+			}
+
+			throw APIError.internal(`Failed to export resume: ${errorMessage}`)
 		}
 	}
 

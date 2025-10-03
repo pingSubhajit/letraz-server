@@ -17,6 +17,8 @@ import type {
 	ExperienceResponse,
 	ExperienceUpdateRequest,
 	ExperienceWithIdParams,
+	ExportResumeParams,
+	ExportResumeResponse,
 	GetResumeParams,
 	GlobalSkillCategoriesResponse,
 	GlobalSkillsResponse,
@@ -74,6 +76,18 @@ export const getResume = api(
 	async ({id}: GetResumeParams): Promise<ResumeResponse> => {
 		const resume = await ResumeService.getResumeById({id})
 		return {resume}
+	}
+)
+
+/**
+ * Export resume as PDF and LaTeX
+ * Sends resume data to util service for export
+ * GET /resume/:id/export
+ */
+export const exportResume = api(
+	{method: 'GET', path: '/resume/:id/export', auth: true, expose: true},
+	async ({id}: ExportResumeParams): Promise<ExportResumeResponse> => {
+		return ResumeService.exportResume({id})
 	}
 )
 

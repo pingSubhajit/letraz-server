@@ -808,3 +808,27 @@ export interface GlobalSkillsResponse {
 export interface GlobalSkillCategoriesResponse {
 	categories: string[]
 }
+
+/**
+ * ==========================================
+ * EXPORT INTERFACES
+ * ==========================================
+ */
+
+/**
+ * Export Resume Path Params
+ */
+export interface ExportResumeParams {
+	/** Resume ID */
+	id: string
+}
+
+/**
+ * Export Resume Response
+ */
+export interface ExportResumeResponse {
+	/** URL to the exported PDF file */
+	pdf_url: string
+	/** URL to the exported LaTeX file */
+	latex_url: string
+}
