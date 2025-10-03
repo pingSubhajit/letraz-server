@@ -1,18 +1,10 @@
 import {APIError} from 'encore.dev/api'
 import {DrizzleError, DrizzleQueryError} from 'drizzle-orm/errors'
 import type {DatabaseError} from 'pg'
-import * as Sentry from '@sentry/node'
-import {secret} from 'encore.dev/config'
-import {appMeta} from 'encore.dev'
+import {addBreadcrumb, captureException, initializeSentry} from './sentry'
 
-const SENTRY_DSN = secret('SentryDSN')()
-const ENVIRONMENT = appMeta().environment.type || 'development'
-
-Sentry.init({
-	dsn: SENTRY_DSN,
-	tracesSampleRate: 0.2, // Sample 20% of transactions for performance monitoring
-	environment: ENVIRONMENT
-})
+// Initialize Sentry on module load
+initializeSentry()
 
 /**
  * Translate Drizzle/node-postgres errors into Encore APIError.
@@ -64,18 +56,37 @@ const mapPgDatabaseError = (err: unknown): APIError | null => {
 }
 
 export const handleError = (err: unknown, traceId: string): APIError => {
+	// Add breadcrumb for error occurrence
+	addBreadcrumb('Error occurred', {trace_id: traceId}, 'error', 'error')
+
+	// Try to translate database errors to user-friendly API errors
 	const translated = translateDatabaseError(err)
 	if (translated instanceof APIError) {
+		/*
+		 * For translated database errors, we don't need to report to Sentry
+		 * as these are expected constraint violations
+		 */
 		throw translated.withDetails({
 			traceId
 		})
 	}
 
-	Sentry.withScope((scope) => {
-		scope.setTag('error-id', traceId)
-		Sentry.captureException(err)
+	// For unexpected errors, capture in Sentry with full context
+	captureException(err, {
+		tags: {
+			'error-id': traceId,
+			'error-type': 'unhandled',
+			'error-source': 'middleware'
+		},
+		extra: {
+			trace_id: traceId,
+			error_message: err instanceof Error ? err.message : String(err),
+			error_stack: err instanceof Error ? err.stack : undefined
+		},
+		level: 'error'
 	})
 
+	// Return generic error to client
 	throw APIError.internal('Something went wrong').withDetails({
 		traceId
 	})

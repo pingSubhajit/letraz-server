@@ -9,6 +9,7 @@ import {eq} from 'drizzle-orm'
 import {db as jobDb} from '@/services/job/database'
 import {KnockWorkflows} from '@/services/notifications/workflows'
 import {secret} from 'encore.dev/config'
+import {addBreadcrumb, captureException} from '@/services/utils/sentry'
 
 // Constants
 const CLIENT_URL = secret('ClientUrl')()
@@ -22,11 +23,25 @@ const waitlistSubmittedEventListener = new Subscription(waitlistSubmitted, 'add-
 		}
 
 		try {
+			addBreadcrumb('Adding waitlist user to Knock', {email: event.email}, 'pubsub')
 			await knock.users.update(event.email, {
 				email: event.email
 			})
 		} catch (err) {
 			log.error(err as Error, 'Failed to upsert user in Knock', {email: event.email})
+
+			// Report to Sentry for monitoring
+			captureException(err, {
+				tags: {
+					operation: 'knock-user-upsert',
+					event_type: 'waitlist-submitted'
+				},
+				extra: {
+					email: event.email,
+					event
+				},
+				level: 'error'
+			})
 		}
 	}
 })
@@ -40,12 +55,27 @@ const userCreatedEventListener = new Subscription(userCreated, 'add-user-to-knoc
 		}
 
 		try {
+			addBreadcrumb('Adding new user to Knock', {email: event.email}, 'pubsub')
 			await knock.users.update(event.email, {
 				email: event.email,
 				name: event.last_name ? `${event.first_name} ${event.last_name}` : event.first_name
 			})
 		} catch (err) {
 			log.error(err as Error, 'Failed to upsert user in Knock', {email: event.email})
+
+			// Report to Sentry for monitoring
+			captureException(err, {
+				tags: {
+					operation: 'knock-user-upsert',
+					event_type: 'user-created'
+				},
+				extra: {
+					email: event.email,
+					user_id: event.id,
+					event
+				},
+				level: 'error'
+			})
 		}
 	}
 })

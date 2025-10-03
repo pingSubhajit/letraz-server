@@ -14,6 +14,7 @@ import {ResumeSectionType} from '@/services/resume/schema'
 import {secret} from 'encore.dev/config'
 import {algoliasearch} from 'algoliasearch'
 import {ResumeService} from '@/services/resume/service'
+import {captureException} from '@/services/utils/sentry'
 
 /**
  * Algolia Credentials
@@ -36,18 +37,43 @@ let algoliaClientInstance: ReturnType<typeof algoliasearch> | null = null
 
 const getAlgoliaClient = () => {
 	if (!algoliaClientInstance) {
-		const appId = ALGOLIA_APP_ID()
-		const apiKey = ALGOLIA_API_KEY()
+		try {
+			const appId = ALGOLIA_APP_ID()
+			const apiKey = ALGOLIA_API_KEY()
 
-		if (!appId || !apiKey) {
-			throw new Error('Algolia credentials not configured')
+			if (!appId || !apiKey) {
+				const error = new Error('Algolia credentials not configured')
+
+				// Report to Sentry - missing credentials
+				captureException(error, {
+					tags: {
+						operation: 'algolia-initialization',
+						service: 'search'
+					},
+					level: 'error'
+				})
+
+				throw error
+			}
+
+			algoliaClientInstance = algoliasearch(appId, apiKey)
+			log.info('Algolia client initialized', {
+				app_id: appId,
+				index: ALGOLIA_INDEX_NAME
+			})
+		} catch (err) {
+			// Report initialization errors to Sentry
+			if (!(err instanceof Error && err.message === 'Algolia credentials not configured')) {
+				captureException(err, {
+					tags: {
+						operation: 'algolia-client-creation',
+						service: 'search'
+					},
+					level: 'error'
+				})
+			}
+			throw err
 		}
-
-		algoliaClientInstance = algoliasearch(appId, apiKey)
-		log.info('Algolia client initialized', {
-			app_id: appId,
-			index: ALGOLIA_INDEX_NAME
-		})
 	}
 
 	return algoliaClientInstance

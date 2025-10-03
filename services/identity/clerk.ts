@@ -1,5 +1,6 @@
 import {APIError} from 'encore.dev/api'
 import {secret} from 'encore.dev/config'
+import {captureException} from '@/services/utils/sentry'
 
 // Configuration variables - to be filled in later
 const CLERK_FRONTEND_API_URL = secret('ClerkFrontEndApiUrl')()
@@ -112,6 +113,18 @@ export class ClerkSDK {
 				}
 			}
 		} catch (error) {
+			// Report Clerk API failures to Sentry
+			captureException(error, {
+				tags: {
+					operation: 'clerk-fetch-user-info',
+					user_id: userId
+				},
+				extra: {
+					api_endpoint: `${this.API_URL}/users/${userId}`
+				},
+				level: 'error'
+			})
+
 			return {
 				success: false,
 				data: {
@@ -181,8 +194,7 @@ export class ClerkSDK {
 			})
 
 			if (response.status === 200) {
-				const jwksData = (await response.json()) as JWKSData
-				return jwksData
+				return (await response.json()) as JWKSData
 			} else {
 				throw APIError.unauthenticated(
 					`Failed to fetch JWKS! Status: ${response.status}`
@@ -192,6 +204,19 @@ export class ClerkSDK {
 			if (error instanceof APIError) {
 				throw error
 			}
+
+			// Report JWKS fetch failures to Sentry
+			captureException(error, {
+				tags: {
+					operation: 'clerk-jwks-fetch',
+					base_url: baseUrl
+				},
+				extra: {
+					jwks_url: jwksUrl,
+					error_type: error instanceof Error ? error.name : 'unknown'
+				},
+				level: 'error'
+			})
 
 			if (error instanceof Error) {
 				if (error.name === 'AbortError' || error.name === 'TimeoutError') {

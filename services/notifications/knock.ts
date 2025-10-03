@@ -1,7 +1,7 @@
 import {secret} from 'encore.dev/config'
 import Knock from '@knocklabs/node'
-import {PostHog} from 'posthog-node'
 import log from 'encore.dev/log'
+import {captureException} from '@/services/utils/sentry'
 
 const knockApiKey = secret('KnockApiKey')
 
@@ -19,6 +19,16 @@ const initClient = (): Knock | null => {
 		})
 	} catch (err) {
 		log.warn('Failed initializing Knock client; notifications disabled', {err: String(err)})
+
+		// Report to Sentry - initialization failures should be tracked
+		captureException(err, {
+			tags: {
+				operation: 'knock-initialization',
+				service: 'notifications'
+			},
+			level: 'warning' // Warning since app continues without notifications
+		})
+
 		return null
 	}
 }

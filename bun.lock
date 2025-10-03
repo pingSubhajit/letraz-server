@@ -11,7 +11,7 @@
         "@typescript-eslint/parser": "^8.44.1",
         "algoliasearch": "^5.39.0",
         "drizzle-orm": "^0.44.5",
-        "encore.dev": "^1.50.0",
+        "encore.dev": "^1.50.4",
         "jose": "^6.1.0",
         "jsonwebtoken": "^9.0.2",
         "nanoid": "^5.1.6",
@@ -408,7 +408,7 @@
 
     "emoji-regex": ["emoji-regex@8.0.0", "", {}, "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A=="],
 
-    "encore.dev": ["encore.dev@1.50.0", "", {}, "sha512-ruPe2xEWOt6LXn5bGK7HArPyjcjgIyKenoXE6dVoOGMnzFfykiZ8/5r2Rc9dn01WhrvgSn2sfDIhooKdxZ+dkA=="],
+    "encore.dev": ["encore.dev@1.50.4", "", {}, "sha512-BAF3sckeurWNrBa51bCJOrCUhvXvRenfytNOQQ4IaHr1KiPorM/6XF59qKqiCkXL3Mtt9Vt3liyxd0mW024ebg=="],
 
     "end-of-stream": ["end-of-stream@1.4.5", "", { "dependencies": { "once": "^1.4.0" } }, "sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg=="],
 

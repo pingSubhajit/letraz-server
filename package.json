@@ -28,7 +28,7 @@
     "@typescript-eslint/parser": "^8.44.1",
     "algoliasearch": "^5.39.0",
     "drizzle-orm": "^0.44.5",
-    "encore.dev": "^1.50.0",
+    "encore.dev": "^1.50.4",
     "jose": "^6.1.0",
     "jsonwebtoken": "^9.0.2",
     "nanoid": "^5.1.6",

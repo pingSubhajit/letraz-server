@@ -18,6 +18,7 @@ import {ThumbnailEvaluatorService} from './services/thumbnail-evaluator.service'
 import {resumeThumbnails} from '@/services/resume/storage'
 import {ResumeService} from '@/services/resume/service'
 import puppeteer from 'puppeteer'
+import {addBreadcrumb, captureException} from '@/services/utils/sentry'
 
 // Secrets for resume preview URL and authentication
 const ResumePreviewUrl = secret('ResumePreviewUrl')
@@ -33,6 +34,8 @@ const ResumePreviewToken = secret('ResumePreviewToken')
 const userCreatedListener = new Subscription(userCreated, 'create-base-resume', {
 	handler: async (event) => {
 		try {
+			addBreadcrumb('Creating base resume for new user', {user_id: event.id}, 'pubsub')
+
 			// Create empty base resume for the new user
 			const [baseResume] = await db
 				.insert(resumes)
@@ -55,6 +58,20 @@ const userCreatedListener = new Subscription(userCreated, 'create-base-resume', 
 				user_id: event.id,
 				email: event.email,
 				error: errorMessage
+			})
+
+			// Report to Sentry - this is critical as it affects new user experience
+			captureException(err, {
+				tags: {
+					operation: 'base-resume-creation',
+					event_type: 'user-created',
+					user_id: event.id
+				},
+				extra: {
+					email: event.email,
+					event
+				},
+				level: 'error'
 			})
 		}
 	}
@@ -112,6 +129,20 @@ const jobScrapeSuccessListener = new Subscription(jobScrapeSuccess, 'trigger-res
 						job_id: event.job_id,
 						error: errorMessage
 					})
+
+					// Report to Sentry - event publishing failure
+					captureException(err, {
+						tags: {
+							operation: 'resume-tailoring-trigger',
+							resume_id: resume.id,
+							job_id: event.job_id
+						},
+						extra: {
+							user_id: resume.user_id,
+							process_id: resume.process_id
+						},
+						level: 'error'
+					})
 				}
 			}
 		} catch (err) {
@@ -119,6 +150,18 @@ const jobScrapeSuccessListener = new Subscription(jobScrapeSuccess, 'trigger-res
 			log.error(err as Error, 'Failed to process job scrape success event', {
 				job_id: event.job_id,
 				error: errorMessage
+			})
+
+			// Report to Sentry - critical path failure
+			captureException(err, {
+				tags: {
+					operation: 'job-scrape-success-processing',
+					job_id: event.job_id
+				},
+				extra: {
+					event
+				},
+				level: 'error'
 			})
 		}
 	}
@@ -325,6 +368,22 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 				error: errorMessage
 			})
 
+			// Report to Sentry - critical business logic failure
+			captureException(err, {
+				tags: {
+					operation: 'resume-tailoring',
+					resume_id: event.resume_id,
+					job_id: event.job_id,
+					process_id: event.process_id
+				},
+				extra: {
+					user_id: event.user_id,
+					job_url: event.job_url,
+					event
+				},
+				level: 'error'
+			})
+
 			try {
 				// Update resume status to failed
 				await db
@@ -365,6 +424,21 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 					resume_id: event.resume_id,
 					job_id: event.job_id,
 					error: cleanupErrorMessage
+				})
+
+				// Report cleanup failures to Sentry - this indicates a serious issue
+				captureException(cleanupErr, {
+					tags: {
+						operation: 'resume-tailoring-cleanup',
+						resume_id: event.resume_id,
+						job_id: event.job_id,
+						process_id: event.process_id
+					},
+					extra: {
+						user_id: event.user_id,
+						original_error: errorMessage
+					},
+					level: 'fatal'
 				})
 			}
 		}

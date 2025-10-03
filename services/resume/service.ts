@@ -42,6 +42,7 @@ import {and, count, desc, eq, inArray, max} from 'drizzle-orm'
 import {core, job} from '~encore/clients'
 import {JobStatus} from '@/services/job/schema'
 import log from 'encore.dev/log'
+import {captureException} from '@/services/utils/sentry'
 
 // Secret for util service endpoint
 const UtilServiceEndpoint = secret('UtilServiceEndpoint')
@@ -109,6 +110,20 @@ export const ResumeService = {
 			log.error(error, 'Failed to publish resume updated event', {
 				resume_id: params.resumeId,
 				change_type: params.changeType
+			})
+
+			// Report to Sentry - event publishing should not fail
+			captureException(error, {
+				tags: {
+					operation: 'resume-update-event-publish',
+					resume_id: params.resumeId,
+					change_type: params.changeType
+				},
+				extra: {
+					section_type: params.sectionType,
+					section_id: params.sectionId
+				},
+				level: 'warning' // Warning since main operation succeeded
 			})
 		}
 	},
@@ -1158,10 +1173,23 @@ export const ResumeService = {
 			try {
 				userCountry = await this.lookupCountry(resumeWithSections.user.country_id.toString())
 			} catch (error) {
-				// Country lookup failed, log but continue with null
+			// Country lookup failed, log but continue with null
 				log.warn('Failed to lookup user country for export', {
 					user_id: resumeWithSections.user.id,
 					country_id: resumeWithSections.user.country_id
+				})
+
+				// Report to Sentry - country lookup failures indicate data integrity issues
+				captureException(error, {
+					tags: {
+						operation: 'country-lookup',
+						user_id: resumeWithSections.user.id
+					},
+					extra: {
+						country_id: resumeWithSections.user.country_id,
+						resume_id: resumeWithSections.id
+					},
+					level: 'warning' // Warning since export continues without country
 				})
 			}
 		}
@@ -1252,6 +1280,22 @@ export const ResumeService = {
 				user_id: resumeWithSections.user.id,
 				error: errorMessage
 			})
+
+			// Report export failures to Sentry - this is a critical user-facing feature
+			if (!(error instanceof APIError)) {
+				captureException(error, {
+					tags: {
+						operation: 'resume-export',
+						resume_id: resumeWithSections.id,
+						user_id: resumeWithSections.user.id
+					},
+					extra: {
+						error_message: errorMessage,
+						has_job: !!resumeWithSections.job
+					},
+					level: 'error'
+				})
+			}
 
 			if (error instanceof APIError) {
 				throw error
