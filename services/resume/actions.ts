@@ -1,5 +1,6 @@
 import {Subscription} from 'encore.dev/pubsub'
 import log from 'encore.dev/log'
+import {secret} from 'encore.dev/config'
 import {userCreated} from '@/services/identity/topics'
 import {jobScrapeFailed, jobScrapeSuccess} from '@/services/job/topics'
 import {db} from '@/services/resume/database'
@@ -16,6 +17,11 @@ import {and, eq} from 'drizzle-orm'
 import {ThumbnailEvaluatorService} from './services/thumbnail-evaluator.service'
 import {resumeThumbnails} from '@/services/resume/storage'
 import {ResumeService} from '@/services/resume/service'
+import puppeteer from 'puppeteer'
+
+// Secrets for resume preview URL and authentication
+const ResumePreviewUrl = secret('ResumePreviewUrl')
+const ResumePreviewToken = secret('ResumePreviewToken')
 
 /**
  * User Created Event Listener
@@ -397,6 +403,7 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 	'generate-thumbnail',
 	{
 		handler: async event => {
+			let browser = null
 			try {
 				log.info('Thumbnail generation started', {
 					resume_id: event.resume_id,
@@ -405,19 +412,65 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 					change_score: event.change_score
 				})
 
-				/*
-				 * TODO: Replace with actual thumbnail generation service
-				 * For now, fetch a dummy image from placeholder service
-				 */
-				const dummyImageUrl = 'https://images.unsplash.com/photo-1759401091238-ce8b8fe68cb1?q=80&w=1528&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+				// Construct the preview URL with authentication token
+				const previewUrl = `${ResumePreviewUrl()}/${event.resume_id}?token=${ResumePreviewToken()}`
 
-				const response = await fetch(dummyImageUrl)
-				if (!response.ok) {
-					throw new Error(`Failed to fetch dummy image: ${response.statusText}`)
-				}
+				log.info('Launching browser for screenshot', {
+					resume_id: event.resume_id,
+					preview_url: previewUrl.replace(ResumePreviewToken(), '***TOKEN***') // Mask token in logs
+				})
 
-				// Get image as buffer
-				const imageBuffer = Buffer.from(await response.arrayBuffer())
+				// Launch headless browser
+				browser = await puppeteer.launch({
+					headless: true,
+					args: [
+						'--no-sandbox',
+						'--disable-setuid-sandbox',
+						'--disable-dev-shm-usage',
+						'--disable-gpu'
+					]
+				})
+
+				const page = await browser.newPage()
+
+				// Set viewport to A4 dimensions at 96 DPI
+				await page.setViewport({
+					width: 794, // A4 width at 96 DPI (210mm)
+					height: 1123, // A4 height at 96 DPI (297mm)
+					deviceScaleFactor: 1 // Standard DPI for faster rendering
+				})
+
+				log.info('Navigating to resume preview page', {
+					resume_id: event.resume_id
+				})
+
+				// Navigate to the preview page with 30 second timeout
+				await page.goto(previewUrl, {
+					waitUntil: 'networkidle0',
+					timeout: 30000
+				})
+
+				log.info('Capturing screenshot', {
+					resume_id: event.resume_id
+				})
+
+				// Capture screenshot as buffer
+				const screenshot = await page.screenshot({
+					type: 'png',
+					fullPage: false // Only capture the viewport (A4 dimensions)
+				})
+
+				// Convert Uint8Array to Buffer
+				const imageBuffer = Buffer.from(screenshot)
+
+				// Close browser
+				await browser.close()
+				browser = null
+
+				log.info('Screenshot captured successfully', {
+					resume_id: event.resume_id,
+					buffer_size: imageBuffer.length
+				})
 
 				// Upload to storage bucket
 				const filename = `${event.resume_id}.png`
@@ -463,9 +516,21 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 				 * Fire and forget - no database tracking or failure events
 				 * The system will naturally retry on next significant change
 				 */
+			} finally {
+				// Ensure browser is closed even if an error occurred
+				if (browser) {
+					try {
+						await browser.close()
+						log.info('Browser closed in cleanup', {
+							resume_id: event.resume_id
+						})
+					} catch (closeErr) {
+						log.error(closeErr as Error, 'Failed to close browser in cleanup', {
+							resume_id: event.resume_id
+						})
+					}
+				}
 			}
 		}
 	}
 )
-
-
