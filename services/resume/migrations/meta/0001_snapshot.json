@@ -1,6 +1,6 @@
 {
-  "id": "558e1278-cfa5-492b-8d24-0210f8311313",
-  "prevId": "288446cc-45b2-4016-8e23-ea368833d55e",
+  "id": "1d407518-65c1-41f5-b731-93f16463030e",
+  "prevId": "558e1278-cfa5-492b-8d24-0210f8311313",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -776,12 +776,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "thumbnail_process_id": {
-          "name": "thumbnail_process_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -822,19 +816,6 @@
           "tableTo": "resume_processes",
           "columnsFrom": [
             "process_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "resumes_thumbnail_process_id_resume_processes_id_fk": {
-          "name": "resumes_thumbnail_process_id_resume_processes_id_fk",
-          "tableFrom": "resumes",
-          "tableTo": "resume_processes",
-          "columnsFrom": [
-            "thumbnail_process_id"
           ],
           "columnsTo": [
             "id"
