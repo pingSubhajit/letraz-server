@@ -7,8 +7,7 @@ import type {
 	CertificationPathParams,
 	CertificationResponse,
 	CertificationUpdateRequest,
-	CertificationWithIdParams,
-	ListCertificationsResponse
+	CertificationWithIdParams
 } from '@/services/resume/interface'
 import {ResumeService} from '@/services/resume/service'
 import {and, eq} from 'drizzle-orm'
@@ -109,7 +108,7 @@ export const CertificationService = {
 	/**
 	 * List all certifications for a resume
 	 */
-	listCertifications: async ({resume_id}: CertificationPathParams): Promise<ListCertificationsResponse> => {
+	listCertifications: async ({resume_id}: CertificationPathParams): Promise<{certifications: CertificationResponse[]}> => {
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 
@@ -146,9 +145,7 @@ export const CertificationService = {
 		// Get and verify certification
 		const certification = await CertificationHelpers.getAndVerifyCertification(id, resumeId)
 
-		return {
-			certification: CertificationHelpers.buildCertificationResponse(certification)
-		}
+		return CertificationHelpers.buildCertificationResponse(certification)
 	},
 
 	/**
@@ -195,9 +192,7 @@ export const CertificationService = {
 			sectionId: certification.id
 		})
 
-		return {
-			certification: CertificationHelpers.buildCertificationResponse(certification)
-		}
+		return CertificationHelpers.buildCertificationResponse(certification)
 	},
 
 	/**
@@ -255,9 +250,7 @@ export const CertificationService = {
 			})
 		}
 
-		return {
-			certification: CertificationHelpers.buildCertificationResponse(updatedCertification)
-		}
+		return CertificationHelpers.buildCertificationResponse(updatedCertification)
 	},
 
 	/**

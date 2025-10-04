@@ -6,9 +6,7 @@ import type {
 	ExperiencePathParams,
 	ExperienceResponse,
 	ExperienceUpdateRequest,
-	ExperienceWithCountry,
-	ExperienceWithIdParams,
-	ListExperiencesResponse
+	ExperienceWithIdParams
 } from '@/services/resume/interface'
 import {experiences, resumeSections, ResumeSectionType} from '@/services/resume/schema'
 import {ResumeService} from '@/services/resume/service'
@@ -21,7 +19,7 @@ export const ExperienceService = {
 	/**
 	 * List all experiences for a resume
 	 */
-	listExperiences: async ({resume_id}: ExperiencePathParams): Promise<ListExperiencesResponse> => {
+	listExperiences: async ({resume_id}: ExperiencePathParams): Promise<{experiences: ExperienceResponse[]}> => {
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 
@@ -49,27 +47,17 @@ export const ExperienceService = {
 		const countryMap = await ResumeService.batchLookupCountries(countryCodes)
 
 		// Build experience list with country data
-		const validExperiences: ExperienceWithCountry[] = []
+		const validExperiences: ExperienceResponse[] = []
 		experienceQueries.forEach(expQuery => {
 			if (expQuery.length > 0) {
 				const exp = expQuery[0]
 				const country = exp.country_code ? countryMap.get(exp.country_code) || null : null
 
 				validExperiences.push({
-					id: exp.id,
-					company_name: exp.company_name,
-					job_title: exp.job_title,
-					employment_type: exp.employment_type,
-					city: exp.city,
+					...exp,
 					country,
-					started_from_month: exp.started_from_month,
-					started_from_year: exp.started_from_year,
-					finished_at_month: exp.finished_at_month,
-					finished_at_year: exp.finished_at_year,
-					current: exp.current,
-					description: exp.description,
-					created_at: exp.created_at,
-					updated_at: exp.updated_at
+					user: exp.user_id,
+					resume_section: exp.resume_section_id
 				})
 			}
 		})
@@ -118,22 +106,10 @@ export const ExperienceService = {
 		}
 
 		return {
-			experience: {
-				id: exp.id,
-				company_name: exp.company_name,
-				job_title: exp.job_title,
-				employment_type: exp.employment_type,
-				city: exp.city,
-				country,
-				started_from_month: exp.started_from_month,
-				started_from_year: exp.started_from_year,
-				finished_at_month: exp.finished_at_month,
-				finished_at_year: exp.finished_at_year,
-				current: exp.current,
-				description: exp.description,
-				created_at: exp.created_at,
-				updated_at: exp.updated_at
-			}
+			...exp,
+			country,
+			user: exp.user_id,
+			resume_section: exp.resume_section_id
 		}
 	},
 
@@ -190,22 +166,10 @@ export const ExperienceService = {
 		})
 
 		return {
-			experience: {
-				id: exp.id,
-				company_name: exp.company_name,
-				job_title: exp.job_title,
-				employment_type: exp.employment_type,
-				city: exp.city,
-				country,
-				started_from_month: exp.started_from_month,
-				started_from_year: exp.started_from_year,
-				finished_at_month: exp.finished_at_month,
-				finished_at_year: exp.finished_at_year,
-				current: exp.current,
-				description: exp.description,
-				created_at: exp.created_at,
-				updated_at: exp.updated_at
-			}
+			...exp,
+			country,
+			user: exp.user_id,
+			resume_section: exp.resume_section_id
 		}
 	},
 
@@ -295,22 +259,10 @@ export const ExperienceService = {
 		}
 
 		return {
-			experience: {
-				id: updatedExp.id,
-				company_name: updatedExp.company_name,
-				job_title: updatedExp.job_title,
-				employment_type: updatedExp.employment_type,
-				city: updatedExp.city,
-				country,
-				started_from_month: updatedExp.started_from_month,
-				started_from_year: updatedExp.started_from_year,
-				finished_at_month: updatedExp.finished_at_month,
-				finished_at_year: updatedExp.finished_at_year,
-				current: updatedExp.current,
-				description: updatedExp.description,
-				created_at: updatedExp.created_at,
-				updated_at: updatedExp.updated_at
-			}
+			...updatedExp,
+			country,
+			user: updatedExp.user_id,
+			resume_section: updatedExp.resume_section_id
 		}
 	},
 

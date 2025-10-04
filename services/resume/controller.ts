@@ -22,11 +22,7 @@ import type {
 	GetResumeParams,
 	GlobalSkillCategoriesResponse,
 	GlobalSkillsResponse,
-	ListCertificationsResponse,
-	ListEducationsResponse,
-	ListExperiencesResponse,
 	ListProficienciesResponse,
-	ListProjectsResponse,
 	ListResumesParams,
 	ListResumesResponse,
 	ProficiencyResponse,
@@ -116,7 +112,7 @@ export const deleteResume = api(
  */
 export const listEducations = api(
 	{method: 'GET', path: '/resume/:resume_id/education', auth: true, expose: true},
-	async ({resume_id}: EducationPathParams): Promise<ListEducationsResponse> => {
+	async ({resume_id}: EducationPathParams): Promise<{educations: EducationResponse[]}> => {
 		return EducationService.listEducations({resume_id})
 	}
 )
@@ -178,7 +174,7 @@ export const deleteEducation = api(
  */
 export const listExperiences = api(
 	{method: 'GET', path: '/resume/:resume_id/experience', auth: true, expose: true},
-	async ({resume_id}: ExperiencePathParams): Promise<ListExperiencesResponse> => {
+	async ({resume_id}: ExperiencePathParams): Promise<{experiences: ExperienceResponse[]}> => {
 		return ExperienceService.listExperiences({resume_id})
 	}
 )
@@ -330,7 +326,7 @@ export const getAllSkillCategories = api(
  */
 export const listProjects = api(
 	{method: 'GET', path: '/resume/:resume_id/project', auth: true, expose: true},
-	async ({resume_id}: ProjectPathParams): Promise<ListProjectsResponse> => {
+	async ({resume_id}: ProjectPathParams): Promise<{projects: ProjectResponse[]}> => {
 		return ProjectService.listProjects({resume_id})
 	}
 )
@@ -391,7 +387,7 @@ export const deleteProject = api(
  */
 export const listCertifications = api(
 	{method: 'GET', path: '/resume/:resume_id/certification', auth: true, expose: true},
-	async ({resume_id}: CertificationPathParams): Promise<ListCertificationsResponse> => {
+	async ({resume_id}: CertificationPathParams): Promise<{certifications: CertificationResponse[]}> => {
 		return CertificationService.listCertifications({resume_id})
 	}
 )

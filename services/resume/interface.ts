@@ -179,74 +179,49 @@ export interface Proficiency {
  */
 
 /**
- * Project with Skills (clean response without internal fields)
+ * Project response
  */
-export interface ProjectWithSkills {
-	id: string
-	name: string
-	category: string | null
-	description: string | null
-	role: string | null
-	github_url: string | null
-	live_url: string | null
-	started_from_month: number | null
-	started_from_year: number | null
-	finished_at_month: number | null
-	finished_at_year: number | null
-	current: boolean | null
+export interface ProjectResponse
+	extends Omit<Project, 'user_id' | 'resume_section_id'>{
+	user: string
+	resume_section: string
 	skills_used: Skill[]
-	created_at: Date
-	updated_at: Date
 }
 
 /**
- * Education with Country (clean response without internal fields)
+ * Education response
  */
-export interface EducationWithCountry {
-	id: string
-	institution_name: string
-	field_of_study: string
-	degree: string | null
+export interface EducationResponse
+	extends Omit<Education, 'user_id' | 'resume_section_id' | 'country_code'> {
+	user: string
+	resume_section: string
 	country: CountryReference | null
-	started_from_month: number | null
-	started_from_year: number | null
-	finished_at_month: number | null
-	finished_at_year: number | null
-	current: boolean
-	description: string | null
-	created_at: Date
-	updated_at: Date
 }
 
 /**
- * Experience with Country (clean response without internal fields)
+ * Experience response
  */
-export interface ExperienceWithCountry {
-	id: string
-	company_name: string
-	job_title: string
-	employment_type: EmploymentType
-	city: string | null
+export interface ExperienceResponse
+	extends Omit<Experience, 'user_id' | 'resume_section_id' | 'country_code'> {
+	user: string
+	resume_section: string
 	country: CountryReference | null
-	started_from_month: number | null
-	started_from_year: number | null
-	finished_at_month: number | null
-	finished_at_year: number | null
-	current: boolean
-	description: string | null
-	created_at: Date
-	updated_at: Date
 }
+
+/**
+ * Certification response
+ */
+export interface CertificationResponse extends Certification {}
 
 /**
  * Section Data Union Type
  */
 export type SectionData =
 	| {skills: ProficiencyWithSkill[]}
-	| EducationWithCountry
-	| ExperienceWithCountry
-	| ProjectWithSkills
-	| Certification
+	| EducationResponse
+	| ExperienceResponse
+	| ProjectResponse
+	| CertificationResponse
 	| null
 
 /**
@@ -633,66 +608,10 @@ export interface ResumeResponse {
 export interface ListResumesResponse extends PaginatedResponse<ResumeShort> {}
 
 /**
- * Education Response (Single)
- */
-export interface EducationResponse {
-	education: EducationWithCountry
-}
-
-/**
- * Education List Response
- */
-export interface ListEducationsResponse {
-	educations: EducationWithCountry[]
-}
-
-/**
- * Experience Response (Single)
- */
-export interface ExperienceResponse {
-	experience: ExperienceWithCountry
-}
-
-/**
- * Experience List Response
- */
-export interface ListExperiencesResponse {
-	experiences: ExperienceWithCountry[]
-}
-
-/**
  * Skill Categories Response
  */
 export interface SkillCategoriesResponse {
 	categories: string[]
-}
-
-/**
- * Project Response (Single)
- */
-export interface ProjectResponse {
-	project: ProjectWithSkills
-}
-
-/**
- * Project List Response
- */
-export interface ListProjectsResponse {
-	projects: ProjectWithSkills[]
-}
-
-/**
- * Certification Response (Single)
- */
-export interface CertificationResponse {
-	certification: Certification
-}
-
-/**
- * Certification List Response
- */
-export interface ListCertificationsResponse {
-	certifications: Certification[]
 }
 
 /**

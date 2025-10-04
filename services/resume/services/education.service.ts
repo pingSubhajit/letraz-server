@@ -6,9 +6,7 @@ import type {
 	EducationPathParams,
 	EducationResponse,
 	EducationUpdateRequest,
-	EducationWithCountry,
-	EducationWithIdParams,
-	ListEducationsResponse
+	EducationWithIdParams
 } from '@/services/resume/interface'
 import {educations, resumeSections, ResumeSectionType} from '@/services/resume/schema'
 import {ResumeService} from '@/services/resume/service'
@@ -22,7 +20,7 @@ export const EducationService = {
 	/**
 	 * List all educations for a resume
 	 */
-	listEducations: async ({resume_id}: EducationPathParams): Promise<ListEducationsResponse> => {
+	listEducations: async ({resume_id}: EducationPathParams): Promise<{educations: EducationResponse[]}> => {
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 
@@ -50,26 +48,17 @@ export const EducationService = {
 		const countryMap = await ResumeService.batchLookupCountries(countryCodes)
 
 		// Build education list with country data
-		const validEducations: EducationWithCountry[] = []
+		const validEducations: EducationResponse[] = []
 		educationQueries.forEach(eduQuery => {
 			if (eduQuery.length > 0) {
 				const edu = eduQuery[0]
 				const country = edu.country_code ? countryMap.get(edu.country_code) || null : null
 
 				validEducations.push({
-					id: edu.id,
-					institution_name: edu.institution_name,
-					field_of_study: edu.field_of_study,
-					degree: edu.degree,
+					...edu,
 					country,
-					started_from_month: edu.started_from_month,
-					started_from_year: edu.started_from_year,
-					finished_at_month: edu.finished_at_month,
-					finished_at_year: edu.finished_at_year,
-					current: edu.current,
-					description: edu.description,
-					created_at: edu.created_at,
-					updated_at: edu.updated_at
+					user: edu.user_id,
+					resume_section: edu.resume_section_id
 				})
 			}
 		})
@@ -118,21 +107,10 @@ export const EducationService = {
 		}
 
 		return {
-			education: {
-				id: edu.id,
-				institution_name: edu.institution_name,
-				field_of_study: edu.field_of_study,
-				degree: edu.degree,
-				country,
-				started_from_month: edu.started_from_month,
-				started_from_year: edu.started_from_year,
-				finished_at_month: edu.finished_at_month,
-				finished_at_year: edu.finished_at_year,
-				current: edu.current,
-				description: edu.description,
-				created_at: edu.created_at,
-				updated_at: edu.updated_at
-			}
+			...edu,
+			country,
+			user: edu.user_id,
+			resume_section: edu.resume_section_id
 		}
 	},
 
@@ -187,21 +165,10 @@ export const EducationService = {
 		})
 
 		return {
-			education: {
-				id: edu.id,
-				institution_name: edu.institution_name,
-				field_of_study: edu.field_of_study,
-				degree: edu.degree,
-				country,
-				started_from_month: edu.started_from_month,
-				started_from_year: edu.started_from_year,
-				finished_at_month: edu.finished_at_month,
-				finished_at_year: edu.finished_at_year,
-				current: edu.current,
-				description: edu.description,
-				created_at: edu.created_at,
-				updated_at: edu.updated_at
-			}
+			...edu,
+			country,
+			user: edu.user_id,
+			resume_section: edu.resume_section_id
 		}
 	},
 
@@ -286,21 +253,10 @@ export const EducationService = {
 		}
 
 		return {
-			education: {
-				id: updatedEdu.id,
-				institution_name: updatedEdu.institution_name,
-				field_of_study: updatedEdu.field_of_study,
-				degree: updatedEdu.degree,
-				country,
-				started_from_month: updatedEdu.started_from_month,
-				started_from_year: updatedEdu.started_from_year,
-				finished_at_month: updatedEdu.finished_at_month,
-				finished_at_year: updatedEdu.finished_at_year,
-				current: updatedEdu.current,
-				description: updatedEdu.description,
-				created_at: updatedEdu.created_at,
-				updated_at: updatedEdu.updated_at
-			}
+			...updatedEdu,
+			country,
+			user: updatedEdu.user_id,
+			resume_section: updatedEdu.resume_section_id
 		}
 	},
 

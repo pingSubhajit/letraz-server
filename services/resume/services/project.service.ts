@@ -2,13 +2,13 @@ import {and, eq, isNull} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {db} from '@/services/resume/database'
 import type {
-	ListProjectsResponse,
+	Project,
 	ProjectCreateRequest,
 	ProjectPathParams,
 	ProjectResponse,
 	ProjectUpdateRequest,
 	ProjectWithIdParams,
-	ProjectWithSkills,
+	Skill,
 	SkillInput
 } from '@/services/resume/interface'
 import {projects, projectSkills, resumeSections, ResumeSectionType, skills} from '@/services/resume/schema'
@@ -127,23 +127,12 @@ const ProjectHelpers = {
 	/**
 	 * Build clean project response with skills
 	 */
-	buildProjectResponse: (project: any, skills: any[]): ProjectWithSkills => {
+	buildProjectResponse: (project: Project, skills: Skill[]): ProjectResponse => {
 		return {
-			id: project.id,
-			name: project.name,
-			category: project.category,
-			description: project.description,
-			role: project.role,
-			github_url: project.github_url,
-			live_url: project.live_url,
-			started_from_month: project.started_from_month,
-			started_from_year: project.started_from_year,
-			finished_at_month: project.finished_at_month,
-			finished_at_year: project.finished_at_year,
-			current: project.current,
-			skills_used: skills,
-			created_at: project.created_at,
-			updated_at: project.updated_at
+			...project,
+			user: project.user_id,
+			resume_section: project.resume_section_id,
+			skills_used: skills
 		}
 	}
 }
@@ -153,7 +142,7 @@ export const ProjectService = {
 	 * List all projects for a resume
 	 * Returns projects with skills_used populated
 	 */
-	listProjects: async ({resume_id}: ProjectPathParams): Promise<ListProjectsResponse> => {
+	listProjects: async ({resume_id}: ProjectPathParams): Promise<{projects: ProjectResponse[]}> => {
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 
@@ -182,7 +171,7 @@ export const ProjectService = {
 			})
 		)
 
-		const validProjects = projectsWithSkills.filter((p): p is ProjectWithSkills => p !== null)
+		const validProjects = projectsWithSkills.filter((p): p is ProjectResponse => p !== null)
 
 		return {projects: validProjects}
 	},
@@ -200,9 +189,7 @@ export const ProjectService = {
 		// Get skills
 		const skills = await ProjectHelpers.getProjectSkills(project.id)
 
-		return {
-			project: ProjectHelpers.buildProjectResponse(project, skills)
-		}
+		return ProjectHelpers.buildProjectResponse(project, skills)
 	},
 
 	/**
@@ -262,9 +249,7 @@ export const ProjectService = {
 			sectionId: project.id
 		})
 
-		return {
-			project: ProjectHelpers.buildProjectResponse(project, projectSkills)
-		}
+		return ProjectHelpers.buildProjectResponse(project, projectSkills)
 	},
 
 	/**
@@ -341,9 +326,7 @@ export const ProjectService = {
 			})
 		}
 
-		return {
-			project: ProjectHelpers.buildProjectResponse(updatedProject, skills)
-		}
+		return ProjectHelpers.buildProjectResponse(updatedProject, skills)
 	},
 
 	/**

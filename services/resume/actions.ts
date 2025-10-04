@@ -254,7 +254,6 @@ const jobScrapeFailedListener = new Subscription(jobScrapeFailed, 'mark-resumes-
 /**
  * Resume Tailoring Triggered Event Listener
  * Processes resume tailoring requests by generating dummy tailored content
- * TODO: Replace with actual AI-powered resume tailoring
  */
 const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTriggered, 'process-resume-tailoring', {
 	handler: async (event) => {
