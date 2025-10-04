@@ -13,6 +13,7 @@ import {
 	ListCountriesParams,
 	ListCountriesResponse,
 	RemoveFromWaitlistParams,
+	SeedCountriesResponse,
 	UpdateWaitlistParams,
 	WaitlistResponse
 } from '@/services/core/interface'
@@ -131,4 +132,16 @@ export const createCountry = api({
 	method: 'POST', path: '/core/country'
 }, async (params: CreateCountryParams): Promise<Country> => {
 	return CoreService.createCountry(params)
+})
+
+/**
+ * Seed countries from REST Countries API.
+ * Fetches all countries and upserts them into the database.
+ * Admin endpoint - requires x-admin-api-key header for authentication.
+ * Accessible at POST /admin/countries/seed
+ */
+export const seedCountries = api({
+	method: 'POST', path: '/admin/countries/seed', auth: true, expose: true
+}, async (): Promise<SeedCountriesResponse> => {
+	return CoreService.seedCountries()
 })

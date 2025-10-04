@@ -139,6 +139,16 @@ export interface CreateCountryParams {
 }
 
 /**
+ * Response for seed countries operation
+ */
+export interface SeedCountriesResponse {
+	/** Number of countries seeded */
+	count: number
+	/** Message describing the operation result */
+	message: string
+}
+
+/**
  * Request parameters for getting a country by code
  */
 export interface GetCountryParams {

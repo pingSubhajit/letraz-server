@@ -14,7 +14,7 @@ import {
 import {db} from '@/services/core/database'
 import {countries, waitlist} from '@/services/core/schema'
 import {waitlistAccessGranted, waitlistSubmitted} from '@/services/core/topics'
-import {asc, count, desc, eq, ilike, inArray} from 'drizzle-orm'
+import {asc, count, desc, eq, ilike, inArray, sql} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 
 export const CoreService = {
@@ -235,5 +235,46 @@ export const CoreService = {
 		}).returning()
 
 		return country
+	},
+
+	/**
+	 * Seed countries from REST Countries API
+	 * Fetches all countries and upserts them into the database
+	 */
+	seedCountries: async (): Promise<{count: number; message: string}> => {
+		// Fetch countries from REST Countries API
+		const resp = await fetch('https://restcountries.com/v3.1/all?fields=cca3,name')
+		if (!resp.ok) {
+			throw APIError.internal(`Failed to fetch countries from REST Countries API: ${resp.status}`)
+		}
+
+		const data = await resp.json() as Array<{cca3?: string; name?: {common?: string}}>
+
+		// Map to { code, name } and filter invalid entries
+		const countriesToSeed = data
+			.map((c) => ({
+				code: c.cca3?.toUpperCase?.(),
+				name: c.name?.common
+			}))
+			.filter((c): c is {code: string; name: string} => !!c.code && !!c.name)
+			.sort((a, b) => a.name.localeCompare(b.name))
+
+		if (countriesToSeed.length === 0) {
+			throw APIError.internal('No valid countries fetched from API')
+		}
+
+		// Bulk upsert using INSERT ... ON CONFLICT with sql template tag
+		const values = countriesToSeed.map((c) => sql`(${c.code}, ${c.name})`)
+
+		await db.execute(sql`
+			INSERT INTO countries (code, name)
+			VALUES ${sql.join(values, sql`, `)}
+			ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
+		`)
+
+		return {
+			count: countriesToSeed.length,
+			message: `Successfully seeded ${countriesToSeed.length} countries`
+		}
 	}
 }
