@@ -481,21 +481,25 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 		handler: async event => {
 			let browser = null
 			try {
+				const environment = appMeta().environment.type
+				const isProduction = environment === 'production'
+
 				log.info('Thumbnail generation started', {
 					resume_id: event.resume_id,
 					user_id: event.user_id,
 					reason: event.reason,
-					change_score: event.change_score
+					change_score: event.change_score,
+					environment: environment,
+					is_production: isProduction
 				})
 
 				// Construct the preview URL with authentication token
 				const previewUrl = `${ResumePreviewUrl()}/${event.resume_id}?token=${ResumePreviewToken()}`
 
-				const isProduction = appMeta().environment.type === 'production'
-
 				log.info('Launching browser for screenshot', {
 					resume_id: event.resume_id,
-					environment: appMeta().environment.type,
+					environment: environment,
+					is_production: isProduction,
 					using_chromium_aws: isProduction,
 					preview_url: previewUrl.replace(ResumePreviewToken(), '***TOKEN***') // Mask token in logs
 				})
@@ -505,12 +509,28 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 				 * Use @sparticuz/chromium in production (AWS Fargate), regular puppeteer locally
 				 */
 				if (isProduction) {
+					log.info('Using @sparticuz/chromium for AWS Fargate', {
+						resume_id: event.resume_id
+					})
+
+					const executablePath = await chromium.executablePath()
+
+					log.info('Chrome executable path resolved', {
+						resume_id: event.resume_id,
+						executable_path: executablePath
+					})
+
 					browser = await puppeteerCore.launch({
 						args: chromium.args,
-						executablePath: await chromium.executablePath(),
+						executablePath: executablePath,
 						headless: true
 					})
 				} else {
+					log.info('Using local puppeteer', {
+						resume_id: event.resume_id,
+						environment: environment
+					})
+
 					browser = await puppeteer.launch({
 						headless: true,
 						args: [
@@ -595,12 +615,15 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 				})
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+				const errorStack = err instanceof Error ? err.stack : undefined
 
 				log.error(err as Error, 'Thumbnail generation failed', {
 					resume_id: event.resume_id,
 					user_id: event.user_id,
 					reason: event.reason,
-					error: errorMessage
+					environment: appMeta().environment.type,
+					error: errorMessage,
+					error_stack: errorStack
 				})
 
 				/*
