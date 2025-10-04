@@ -1,6 +1,7 @@
 import {Subscription} from 'encore.dev/pubsub'
 import log from 'encore.dev/log'
 import {secret} from 'encore.dev/config'
+import {appMeta} from 'encore.dev'
 import {userCreated} from '@/services/identity/topics'
 import {jobScrapeFailed, jobScrapeSuccess} from '@/services/job/topics'
 import {db} from '@/services/resume/database'
@@ -18,6 +19,8 @@ import {ThumbnailEvaluatorService} from './services/thumbnail-evaluator.service'
 import {resumeThumbnails} from '@/services/resume/storage'
 import {ResumeService} from '@/services/resume/service'
 import puppeteer from 'puppeteer'
+import puppeteerCore from 'puppeteer-core'
+import chromium from '@sparticuz/chromium'
 import {addBreadcrumb, captureException} from '@/services/utils/sentry'
 
 // Secrets for resume preview URL and authentication
@@ -488,21 +491,36 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 				// Construct the preview URL with authentication token
 				const previewUrl = `${ResumePreviewUrl()}/${event.resume_id}?token=${ResumePreviewToken()}`
 
+				const isProduction = appMeta().environment.type === 'production'
+
 				log.info('Launching browser for screenshot', {
 					resume_id: event.resume_id,
+					environment: appMeta().environment.type,
+					using_chromium_aws: isProduction,
 					preview_url: previewUrl.replace(ResumePreviewToken(), '***TOKEN***') // Mask token in logs
 				})
 
-				// Launch headless browser
-				browser = await puppeteer.launch({
-					headless: true,
-					args: [
-						'--no-sandbox',
-						'--disable-setuid-sandbox',
-						'--disable-dev-shm-usage',
-						'--disable-gpu'
-					]
-				})
+				/*
+				 * Launch headless browser
+				 * Use @sparticuz/chromium in production (AWS Fargate), regular puppeteer locally
+				 */
+				if (isProduction) {
+					browser = await puppeteerCore.launch({
+						args: chromium.args,
+						executablePath: await chromium.executablePath(),
+						headless: true
+					})
+				} else {
+					browser = await puppeteer.launch({
+						headless: true,
+						args: [
+							'--no-sandbox',
+							'--disable-setuid-sandbox',
+							'--disable-dev-shm-usage',
+							'--disable-gpu'
+						]
+					})
+				}
 
 				const page = await browser.newPage()
 
