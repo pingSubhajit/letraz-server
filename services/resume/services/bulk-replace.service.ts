@@ -572,7 +572,7 @@ export const BulkReplaceService = {
 		})
 
 		// Phase 5: Return updated resume (skip auth checks - already validated)
-		return ResumeService.getResumeByIdInternal(resumeId)
+		return ResumeService.getResumeById({id: resumeId}, {skipAuth: true})
 	},
 
 	/**

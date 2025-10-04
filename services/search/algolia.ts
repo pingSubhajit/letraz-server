@@ -274,8 +274,8 @@ export const AlgoliaService = {
 	 */
 	async updateResumeIndex(resumeId: string): Promise<void> {
 		try {
-			// Fetch full resume data using internal method (no auth context in PubSub)
-			const resumeData = await ResumeService.getResumeByIdInternal(resumeId)
+			// Fetch full resume data (skip auth - no auth context in PubSub)
+			const resumeData = await ResumeService.getResumeById({id: resumeId}, {skipAuth: true})
 
 			// Transform to Algolia format
 			const algoliaDoc = this.transformResumeToAlgoliaDocument(resumeData)
