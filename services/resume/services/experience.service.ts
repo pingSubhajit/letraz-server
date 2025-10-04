@@ -67,7 +67,9 @@ export const ExperienceService = {
 					finished_at_month: exp.finished_at_month,
 					finished_at_year: exp.finished_at_year,
 					current: exp.current,
-					description: exp.description
+					description: exp.description,
+					created_at: exp.created_at,
+					updated_at: exp.updated_at
 				})
 			}
 		})
@@ -128,7 +130,9 @@ export const ExperienceService = {
 				finished_at_month: exp.finished_at_month,
 				finished_at_year: exp.finished_at_year,
 				current: exp.current,
-				description: exp.description
+				description: exp.description,
+				created_at: exp.created_at,
+				updated_at: exp.updated_at
 			}
 		}
 	},
@@ -198,7 +202,9 @@ export const ExperienceService = {
 				finished_at_month: exp.finished_at_month,
 				finished_at_year: exp.finished_at_year,
 				current: exp.current,
-				description: exp.description
+				description: exp.description,
+				created_at: exp.created_at,
+				updated_at: exp.updated_at
 			}
 		}
 	},
@@ -301,7 +307,9 @@ export const ExperienceService = {
 				finished_at_month: updatedExp.finished_at_month,
 				finished_at_year: updatedExp.finished_at_year,
 				current: updatedExp.current,
-				description: updatedExp.description
+				description: updatedExp.description,
+				created_at: updatedExp.created_at,
+				updated_at: updatedExp.updated_at
 			}
 		}
 	},

@@ -32,6 +32,7 @@ import {
 	ListResumesResponse,
 	RearrangeSectionsRequest,
 	ResumeWithSections,
+	SectionData,
 	TailorResumeRequest,
 	TailorResumeResponse
 } from '@/services/resume/interface'
@@ -136,7 +137,10 @@ export const ResumeService = {
 		const userId = this.getAuthenticatedUserId()
 
 		if (idOrBase === 'base') {
-			// Get or create base resume for user
+			/*
+			 * Get base resume for user
+			 * TODO: Create base resume if not found
+			 */
 			const baseResumeQuery = await db
 				.select()
 				.from(resumes)
@@ -378,7 +382,9 @@ export const ResumeService = {
 							finished_at_month: edu.finished_at_month,
 							finished_at_year: edu.finished_at_year,
 							current: edu.current,
-							description: edu.description
+							description: edu.description,
+							created_at: edu.created_at,
+							updated_at: edu.updated_at
 						}
 						break
 					}
@@ -397,7 +403,9 @@ export const ResumeService = {
 							finished_at_month: exp.finished_at_month,
 							finished_at_year: exp.finished_at_year,
 							current: exp.current,
-							description: exp.description
+							description: exp.description,
+							created_at: exp.created_at,
+							updated_at: exp.updated_at
 						}
 						break
 					}
@@ -423,7 +431,9 @@ export const ResumeService = {
 							finished_at_month: project.finished_at_month,
 							finished_at_year: project.finished_at_year,
 							current: project.current,
-							skills_used: projectSkillsData
+							skills_used: projectSkillsData,
+							created_at: project.created_at,
+							updated_at: project.updated_at
 						}
 						break
 					}
@@ -434,7 +444,9 @@ export const ResumeService = {
 							name: cert.name,
 							issuing_organization: cert.issuing_organization,
 							issue_date: cert.issue_date,
-							credential_url: cert.credential_url
+							credential_url: cert.credential_url,
+							created_at: cert.created_at,
+							updated_at: cert.updated_at
 						}
 						break
 					}
@@ -564,7 +576,7 @@ export const ResumeService = {
 		// Build sections with data
 		const sectionsWithData = await Promise.all(
 			sections.map(async section => {
-				let data: any
+				let data: SectionData = null
 
 				switch (section.type) {
 					case 'Education': {
@@ -579,19 +591,19 @@ export const ResumeService = {
 							const country = edu.country_code ? countryMap.get(edu.country_code) || null : null
 
 							data = {
-								education: {
-									id: edu.id,
-									institution_name: edu.institution_name,
-									field_of_study: edu.field_of_study,
-									degree: edu.degree,
-									country,
-									started_from_month: edu.started_from_month,
-									started_from_year: edu.started_from_year,
-									finished_at_month: edu.finished_at_month,
-									finished_at_year: edu.finished_at_year,
-									current: edu.current,
-									description: edu.description
-								}
+								id: edu.id,
+								institution_name: edu.institution_name,
+								field_of_study: edu.field_of_study,
+								degree: edu.degree,
+								country,
+								started_from_month: edu.started_from_month,
+								started_from_year: edu.started_from_year,
+								finished_at_month: edu.finished_at_month,
+								finished_at_year: edu.finished_at_year,
+								current: edu.current,
+								description: edu.description,
+								created_at: edu.created_at,
+								updated_at: edu.updated_at
 							}
 						}
 						break
@@ -609,20 +621,20 @@ export const ResumeService = {
 							const country = exp.country_code ? countryMap.get(exp.country_code) || null : null
 
 							data = {
-								experience: {
-									id: exp.id,
-									company_name: exp.company_name,
-									job_title: exp.job_title,
-									employment_type: exp.employment_type,
-									city: exp.city,
-									country,
-									started_from_month: exp.started_from_month,
-									started_from_year: exp.started_from_year,
-									finished_at_month: exp.finished_at_month,
-									finished_at_year: exp.finished_at_year,
-									current: exp.current,
-									description: exp.description
-								}
+								id: exp.id,
+								company_name: exp.company_name,
+								job_title: exp.job_title,
+								employment_type: exp.employment_type,
+								city: exp.city,
+								country,
+								started_from_month: exp.started_from_month,
+								started_from_year: exp.started_from_year,
+								finished_at_month: exp.finished_at_month,
+								finished_at_year: exp.finished_at_year,
+								current: exp.current,
+								description: exp.description,
+								created_at: exp.created_at,
+								updated_at: exp.updated_at
 							}
 						}
 						break
@@ -684,21 +696,21 @@ export const ResumeService = {
 								}))
 
 							data = {
-								project: {
-									id: proj.id,
-									name: proj.name,
-									category: proj.category,
-									description: proj.description,
-									role: proj.role,
-									github_url: proj.github_url,
-									live_url: proj.live_url,
-									started_from_month: proj.started_from_month,
-									started_from_year: proj.started_from_year,
-									finished_at_month: proj.finished_at_month,
-									finished_at_year: proj.finished_at_year,
-									current: proj.current,
-									skills_used: skillsUsed
-								}
+								id: proj.id,
+								name: proj.name,
+								category: proj.category,
+								description: proj.description,
+								role: proj.role,
+								github_url: proj.github_url,
+								live_url: proj.live_url,
+								started_from_month: proj.started_from_month,
+								started_from_year: proj.started_from_year,
+								finished_at_month: proj.finished_at_month,
+								finished_at_year: proj.finished_at_year,
+								current: proj.current,
+								skills_used: skillsUsed,
+								created_at: proj.created_at,
+								updated_at: proj.updated_at
 							}
 						}
 						break
@@ -714,20 +726,20 @@ export const ResumeService = {
 						if (certQuery.length > 0) {
 							const cert = certQuery[0]
 							data = {
-								certification: {
-									id: cert.id,
-									name: cert.name,
-									issuing_organization: cert.issuing_organization,
-									issue_date: cert.issue_date,
-									credential_url: cert.credential_url
-								}
+								id: cert.id,
+								name: cert.name,
+								issuing_organization: cert.issuing_organization,
+								issue_date: cert.issue_date,
+								credential_url: cert.credential_url,
+								created_at: cert.created_at,
+								updated_at: cert.updated_at
 							}
 						}
 						break
 					}
 
 					default:
-						data = {}
+						data = null
 				}
 
 				return {

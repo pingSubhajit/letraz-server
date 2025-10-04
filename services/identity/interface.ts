@@ -1,3 +1,5 @@
+import {IsURL, MinLen} from 'encore.dev/validate'
+
 /**
  * User Interface
  * Represents a user in the system
@@ -46,7 +48,7 @@ export interface CreateUserInput {
 }
 
 /**
- * Update User Input
+ * Update User Input (Admin)
  */
 export interface UpdateUserInput {
 	title?: string | null
@@ -65,6 +67,25 @@ export interface UpdateUserInput {
 	is_active?: boolean
 	is_staff?: boolean
 	last_login?: Date | null
+}
+
+/**
+ * Update Profile Request
+ * Fields that a user can update on their own profile
+ */
+export interface UpdateProfileRequest {
+	title?: string | null
+	first_name?: string & MinLen<1>
+	last_name?: string | null
+	phone?: string | null
+	dob?: Date | null
+	nationality?: string | null
+	address?: string | null
+	city?: string | null
+	postal?: string | null
+	country_id?: number | null
+	website?: (string & IsURL) | null
+	profile_text?: string | null
 }
 
 export interface UserCreatedEvent extends User {}

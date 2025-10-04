@@ -12,6 +12,7 @@ import type {
 } from '@/services/resume/interface'
 import {educations, resumeSections, ResumeSectionType} from '@/services/resume/schema'
 import {ResumeService} from '@/services/resume/service'
+import log from 'encore.dev/log'
 
 /**
  * Education Service
@@ -66,7 +67,9 @@ export const EducationService = {
 					finished_at_month: edu.finished_at_month,
 					finished_at_year: edu.finished_at_year,
 					current: edu.current,
-					description: edu.description
+					description: edu.description,
+					created_at: edu.created_at,
+					updated_at: edu.updated_at
 				})
 			}
 		})
@@ -126,7 +129,9 @@ export const EducationService = {
 				finished_at_month: edu.finished_at_month,
 				finished_at_year: edu.finished_at_year,
 				current: edu.current,
-				description: edu.description
+				description: edu.description,
+				created_at: edu.created_at,
+				updated_at: edu.updated_at
 			}
 		}
 	},
@@ -151,6 +156,8 @@ export const EducationService = {
 
 		// Create section
 		const sectionId = await ResumeService.createSectionForResume(resumeId, ResumeSectionType.Education)
+
+		log.info('Education section created in DB')
 
 		// Create education
 		const [edu] = await db
@@ -191,7 +198,9 @@ export const EducationService = {
 				finished_at_month: edu.finished_at_month,
 				finished_at_year: edu.finished_at_year,
 				current: edu.current,
-				description: edu.description
+				description: edu.description,
+				created_at: edu.created_at,
+				updated_at: edu.updated_at
 			}
 		}
 	},
@@ -288,7 +297,9 @@ export const EducationService = {
 				finished_at_month: updatedEdu.finished_at_month,
 				finished_at_year: updatedEdu.finished_at_year,
 				current: updatedEdu.current,
-				description: updatedEdu.description
+				description: updatedEdu.description,
+				created_at: updatedEdu.created_at,
+				updated_at: updatedEdu.updated_at
 			}
 		}
 	},

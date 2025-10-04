@@ -1,7 +1,7 @@
 import {api, APIError} from 'encore.dev/api'
 import {getAuthData} from '~encore/auth'
 import type {AuthData} from '@/services/identity/auth'
-import type {User} from '@/services/identity/interface'
+import type {UpdateProfileRequest, User} from '@/services/identity/interface'
 import {IdentityService} from '@/services/identity/service'
 
 /**
@@ -19,6 +19,23 @@ export const getCurrentUser = api(
 		const authData = getAuthData() as AuthData
 
 		return {...authData.user}
+	}
+)
+
+/**
+ * Update Current User Profile
+ * Allows authenticated users to update their own profile information
+ */
+export const updateCurrentUser = api(
+	{expose: true, method: 'PUT', path: '/identity/me', auth: true},
+	async (data: UpdateProfileRequest): Promise<UserResponse> => {
+		const authData = getAuthData() as AuthData
+		const userId = authData.user.id
+
+		// Update the user profile
+		const updatedUser = await IdentityService.updateUser(userId, data)
+
+		return updatedUser
 	}
 )
 

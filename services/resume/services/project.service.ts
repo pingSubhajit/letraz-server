@@ -141,7 +141,9 @@ const ProjectHelpers = {
 			finished_at_month: project.finished_at_month,
 			finished_at_year: project.finished_at_year,
 			current: project.current,
-			skills_used: skills
+			skills_used: skills,
+			created_at: project.created_at,
+			updated_at: project.updated_at
 		}
 	}
 }

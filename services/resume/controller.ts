@@ -53,6 +53,7 @@ import {SkillService} from '@/services/resume/services/skill.service'
 import {ProjectService} from '@/services/resume/services/project.service'
 import {CertificationService} from '@/services/resume/services/certification.service'
 import {BulkReplaceService} from '@/services/resume/services/bulk-replace.service'
+import log from 'encore.dev/log'
 
 /**
  * List all resumes for authenticated user
@@ -138,6 +139,7 @@ export const getEducation = api(
 export const createEducation = api(
 	{method: 'POST', path: '/resume/:resume_id/education', auth: true, expose: true},
 	async ({resume_id, ...data}: EducationPathParams & EducationCreateRequest): Promise<EducationResponse> => {
+		log.info('Education request received')
 		return EducationService.createEducation({resume_id, ...data})
 	}
 )

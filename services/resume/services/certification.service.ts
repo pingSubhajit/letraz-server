@@ -94,7 +94,9 @@ const CertificationHelpers = {
 			name: cert.name,
 			issuing_organization: cert.issuing_organization,
 			issue_date: cert.issue_date,
-			credential_url: cert.credential_url
+			credential_url: cert.credential_url,
+			created_at: cert.created_at,
+			updated_at: cert.updated_at
 		}
 	}
 }

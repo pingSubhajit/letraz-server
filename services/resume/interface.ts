@@ -155,6 +155,8 @@ export interface Certification {
 	issuing_organization: string | null
 	issue_date: Date | null
 	credential_url: string | null
+	created_at: Date
+	updated_at: Date
 }
 
 /**
@@ -193,6 +195,8 @@ export interface ProjectWithSkills {
 	finished_at_year: number | null
 	current: boolean | null
 	skills_used: Skill[]
+	created_at: Date
+	updated_at: Date
 }
 
 /**
@@ -210,6 +214,8 @@ export interface EducationWithCountry {
 	finished_at_year: number | null
 	current: boolean
 	description: string | null
+	created_at: Date
+	updated_at: Date
 }
 
 /**
@@ -228,6 +234,8 @@ export interface ExperienceWithCountry {
 	finished_at_year: number | null
 	current: boolean
 	description: string | null
+	created_at: Date
+	updated_at: Date
 }
 
 /**
