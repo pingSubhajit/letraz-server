@@ -225,10 +225,10 @@ export const ProjectService = {
 				role: data.role || null,
 				github_url: data.github_url || null,
 				live_url: data.live_url || null,
-				started_from_month: data.started_from_month || null,
-				started_from_year: data.started_from_year || null,
-				finished_at_month: data.finished_at_month || null,
-				finished_at_year: data.finished_at_year || null,
+				started_from_month: ResumeService.parseNumericValue(data.started_from_month),
+				started_from_year: ResumeService.parseNumericValue(data.started_from_year),
+				finished_at_month: ResumeService.parseNumericValue(data.finished_at_month),
+				finished_at_year: ResumeService.parseNumericValue(data.finished_at_year),
 				current: data.current || false
 			})
 			.returning()
@@ -289,10 +289,10 @@ export const ProjectService = {
 		if (data.role !== undefined) updateData.role = data.role
 		if (data.github_url !== undefined) updateData.github_url = data.github_url
 		if (data.live_url !== undefined) updateData.live_url = data.live_url
-		if (data.started_from_month !== undefined) updateData.started_from_month = data.started_from_month
-		if (data.started_from_year !== undefined) updateData.started_from_year = data.started_from_year
-		if (data.finished_at_month !== undefined) updateData.finished_at_month = data.finished_at_month
-		if (data.finished_at_year !== undefined) updateData.finished_at_year = data.finished_at_year
+		if (data.started_from_month !== undefined) updateData.started_from_month = ResumeService.parseNumericValue(data.started_from_month)
+		if (data.started_from_year !== undefined) updateData.started_from_year = ResumeService.parseNumericValue(data.started_from_year)
+		if (data.finished_at_month !== undefined) updateData.finished_at_month = ResumeService.parseNumericValue(data.finished_at_month)
+		if (data.finished_at_year !== undefined) updateData.finished_at_year = ResumeService.parseNumericValue(data.finished_at_year)
 		if (data.current !== undefined) updateData.current = data.current
 
 		const [updatedProject] = await db.update(projects).set(updateData).where(eq(projects.id, id)).returning()

@@ -158,10 +158,10 @@ export const ExperienceService = {
 				employment_type: data.employment_type,
 				city: data.city || null,
 				country_code: data.country_code || null,
-				started_from_month: data.started_from_month || null,
-				started_from_year: data.started_from_year || null,
-				finished_at_month: data.finished_at_month || null,
-				finished_at_year: data.finished_at_year || null,
+				started_from_month: ResumeService.parseNumericValue(data.started_from_month),
+				started_from_year: ResumeService.parseNumericValue(data.started_from_year),
+				finished_at_month: ResumeService.parseNumericValue(data.finished_at_month),
+				finished_at_year: ResumeService.parseNumericValue(data.finished_at_year),
 				current: data.current || false,
 				description: data.description || null
 			})
@@ -240,10 +240,10 @@ export const ExperienceService = {
 		if (data.employment_type !== undefined) updateData.employment_type = data.employment_type
 		if (data.city !== undefined) updateData.city = data.city
 		if (data.country_code !== undefined) updateData.country_code = data.country_code
-		if (data.started_from_month !== undefined) updateData.started_from_month = data.started_from_month
-		if (data.started_from_year !== undefined) updateData.started_from_year = data.started_from_year
-		if (data.finished_at_month !== undefined) updateData.finished_at_month = data.finished_at_month
-		if (data.finished_at_year !== undefined) updateData.finished_at_year = data.finished_at_year
+		if (data.started_from_month !== undefined) updateData.started_from_month = ResumeService.parseNumericValue(data.started_from_month)
+		if (data.started_from_year !== undefined) updateData.started_from_year = ResumeService.parseNumericValue(data.started_from_year)
+		if (data.finished_at_month !== undefined) updateData.finished_at_month = ResumeService.parseNumericValue(data.finished_at_month)
+		if (data.finished_at_year !== undefined) updateData.finished_at_year = ResumeService.parseNumericValue(data.finished_at_year)
 		if (data.current !== undefined) updateData.current = data.current
 		if (data.description !== undefined) updateData.description = data.description
 

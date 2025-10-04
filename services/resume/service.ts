@@ -137,9 +137,10 @@ export const ResumeService = {
 	 * Returns the resume ID for the authenticated user
 	 */
 	async resolveResumeId(idOrBase: string): Promise<string> {
-		const userId = this.getAuthenticatedUserId()
-
 		if (idOrBase === 'base') {
+			// Only get userId when resolving 'base' alias
+			const userId = this.getAuthenticatedUserId()
+
 			/*
 			 * Get base resume for user
 			 * TODO: Create base resume if not found
@@ -157,6 +158,7 @@ export const ResumeService = {
 			return baseResumeQuery[0].id
 		}
 
+		// Return the ID as-is (no auth context needed)
 		return idOrBase
 	},
 
@@ -536,16 +538,41 @@ export const ResumeService = {
 	},
 
 	/**
-	 * Validate date range values
+	 * Parse numeric string to number
+	 * Handles both number and string inputs
 	 */
-	validateDateRange: (month?: number | null, year?: number | null): void => {
+	parseNumericValue: (value: number | string | null | undefined): number | null => {
+		if (value === null || value === undefined) {
+			return null
+		}
+
+		if (typeof value === 'number') {
+			return value
+		}
+
+		// Parse string to number
+		const parsed = parseInt(value, 10)
+		if (isNaN(parsed)) {
+			throw APIError.invalidArgument(`Invalid numeric value: '${value}'`)
+		}
+
+		return parsed
+	},
+
+	/**
+	 * Validate date range values
+	 * Accepts both numbers and numeric strings
+	 */
+	validateDateRange: (month?: number | string | null, year?: number | string | null): void => {
 		if (month !== null && month !== undefined) {
-			if (month < 1 || month > 12) {
+			const monthNum = typeof month === 'string' ? parseInt(month, 10) : month
+			if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
 				throw APIError.invalidArgument('Month must be between 1 and 12')
 			}
 		}
 		if (year !== null && year !== undefined) {
-			if (year < 1900 || year > 2100) {
+			const yearNum = typeof year === 'string' ? parseInt(year, 10) : year
+			if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
 				throw APIError.invalidArgument('Year must be between 1900 and 2100')
 			}
 		}

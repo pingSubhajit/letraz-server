@@ -323,10 +323,10 @@ export interface EducationCreateRequest {
 	field_of_study: string
 	degree?: string
 	country_code?: string
-	started_from_month?: number & Min<1> & Max<12>
-	started_from_year?: number & Min<1900> & Max<2100>
-	finished_at_month?: number & Min<1> & Max<12>
-	finished_at_year?: number & Min<1900> & Max<2100>
+	started_from_month?: (number & Min<1> & Max<12>) | string
+	started_from_year?: (number & Min<1900> & Max<2100>) | string
+	finished_at_month?: (number & Min<1> & Max<12>) | string
+	finished_at_year?: (number & Min<1900> & Max<2100>) | string
 	current?: boolean
 	description?: string
 }
@@ -339,10 +339,10 @@ export interface EducationUpdateRequest {
 	field_of_study?: string
 	degree?: string
 	country_code?: string
-	started_from_month?: number & Min<1> & Max<12>
-	started_from_year?: number & Min<1900> & Max<2100>
-	finished_at_month?: number & Min<1> & Max<12>
-	finished_at_year?: number & Min<1900> & Max<2100>
+	started_from_month?: (number & Min<1> & Max<12>) | string
+	started_from_year?: (number & Min<1900> & Max<2100>) | string
+	finished_at_month?: (number & Min<1> & Max<12>) | string
+	finished_at_year?: (number & Min<1900> & Max<2100>) | string
 	current?: boolean
 	description?: string
 }
@@ -377,10 +377,10 @@ export interface ExperienceCreateRequest {
 	employment_type: EmploymentType
 	city?: string
 	country_code?: string
-	started_from_month?: number & Min<1> & Max<12>
-	started_from_year?: number & Min<1900> & Max<2100>
-	finished_at_month?: number & Min<1> & Max<12>
-	finished_at_year?: number & Min<1900> & Max<2100>
+	started_from_month?: (number & Min<1> & Max<12>) | string
+	started_from_year?: (number & Min<1900> & Max<2100>) | string
+	finished_at_month?: (number & Min<1> & Max<12>) | string
+	finished_at_year?: (number & Min<1900> & Max<2100>) | string
 	current?: boolean
 	description?: string
 }
@@ -394,10 +394,10 @@ export interface ExperienceUpdateRequest {
 	employment_type?: EmploymentType
 	city?: string
 	country_code?: string
-	started_from_month?: number & Min<1> & Max<12>
-	started_from_year?: number & Min<1900> & Max<2100>
-	finished_at_month?: number & Min<1> & Max<12>
-	finished_at_year?: number & Min<1900> & Max<2100>
+	started_from_month?: (number & Min<1> & Max<12>) | string
+	started_from_year?: (number & Min<1900> & Max<2100>) | string
+	finished_at_month?: (number & Min<1> & Max<12>) | string
+	finished_at_year?: (number & Min<1900> & Max<2100>) | string
 	current?: boolean
 	description?: string
 }
@@ -465,10 +465,10 @@ export interface ProjectCreateRequest {
 	github_url?: string & IsURL
 	live_url?: string & IsURL
 	skills_used?: SkillInput[]
-	started_from_month?: number & Min<1> & Max<12>
-	started_from_year?: number & Min<1900> & Max<2100>
-	finished_at_month?: number & Min<1> & Max<12>
-	finished_at_year?: number & Min<1900> & Max<2100>
+	started_from_month?: (number & Min<1> & Max<12>) | string
+	started_from_year?: (number & Min<1900> & Max<2100>) | string
+	finished_at_month?: (number & Min<1> & Max<12>) | string
+	finished_at_year?: (number & Min<1900> & Max<2100>) | string
 	current?: boolean
 }
 
@@ -483,10 +483,10 @@ export interface ProjectUpdateRequest {
 	github_url?: string & IsURL
 	live_url?: string & IsURL
 	skills_used?: SkillInput[]
-	started_from_month?: number & Min<1> & Max<12>
-	started_from_year?: number & Min<1900> & Max<2100>
-	finished_at_month?: number & Min<1> & Max<12>
-	finished_at_year?: number & Min<1900> & Max<2100>
+	started_from_month?: (number & Min<1> & Max<12>) | string
+	started_from_year?: (number & Min<1900> & Max<2100>) | string
+	finished_at_month?: (number & Min<1> & Max<12>) | string
+	finished_at_year?: (number & Min<1900> & Max<2100>) | string
 	current?: boolean
 }
 
