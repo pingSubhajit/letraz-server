@@ -29,7 +29,7 @@ import {ResumeService} from '@/services/resume/service'
  * Helper Functions
  * Internal utilities for project operations
  */
-const ProjectHelpers = {
+export const ProjectHelpers = {
 	/**
 	 * Get and verify project exists and belongs to resume
 	 * Returns the project record

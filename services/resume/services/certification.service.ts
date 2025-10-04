@@ -27,7 +27,7 @@ import {and, eq} from 'drizzle-orm'
  * Helper Functions
  * Internal utilities for certification operations
  */
-const CertificationHelpers = {
+export const CertificationHelpers = {
 	/**
 	 * Parse and validate date input
 	 * Accepts Date objects or date strings, returns Date object or null

@@ -23,6 +23,10 @@ import {
 	ResumeStatus,
 	skills
 } from '@/services/resume/schema'
+import {EducationHelpers} from '@/services/resume/services/education.service'
+import {ExperienceHelpers} from '@/services/resume/services/experience.service'
+import {ProjectHelpers} from '@/services/resume/services/project.service'
+import {CertificationHelpers} from '@/services/resume/services/certification.service'
 import {
 	DeleteResumeParams,
 	ExportResumeParams,
@@ -371,42 +375,13 @@ export const ResumeService = {
 					case 'Education': {
 						const edu = sectionData[0] as any
 						const country = edu.country_code ? countryMap.get(edu.country_code) || null : null
-						data = {
-							id: edu.id,
-							institution_name: edu.institution_name,
-							field_of_study: edu.field_of_study,
-							degree: edu.degree,
-							country,
-							started_from_month: edu.started_from_month,
-							started_from_year: edu.started_from_year,
-							finished_at_month: edu.finished_at_month,
-							finished_at_year: edu.finished_at_year,
-							current: edu.current,
-							description: edu.description,
-							created_at: edu.created_at,
-							updated_at: edu.updated_at
-						}
+						data = EducationHelpers.buildEducationResponse(edu, country)
 						break
 					}
 					case 'Experience': {
 						const exp = sectionData[0] as any
 						const country = exp.country_code ? countryMap.get(exp.country_code) || null : null
-						data = {
-							id: exp.id,
-							company_name: exp.company_name,
-							job_title: exp.job_title,
-							employment_type: exp.employment_type,
-							city: exp.city,
-							country,
-							started_from_month: exp.started_from_month,
-							started_from_year: exp.started_from_year,
-							finished_at_month: exp.finished_at_month,
-							finished_at_year: exp.finished_at_year,
-							current: exp.current,
-							description: exp.description,
-							created_at: exp.created_at,
-							updated_at: exp.updated_at
-						}
+						data = ExperienceHelpers.buildExperienceResponse(exp, country)
 						break
 					}
 					case 'Project': {
@@ -418,36 +393,12 @@ export const ResumeService = {
 							.map(skillId => skillMap.get(skillId))
 							.filter((skill): skill is typeof skills.$inferSelect => skill !== undefined)
 
-						data = {
-							id: project.id,
-							name: project.name,
-							category: project.category,
-							description: project.description,
-							role: project.role,
-							github_url: project.github_url,
-							live_url: project.live_url,
-							started_from_month: project.started_from_month,
-							started_from_year: project.started_from_year,
-							finished_at_month: project.finished_at_month,
-							finished_at_year: project.finished_at_year,
-							current: project.current,
-							skills_used: projectSkillsData,
-							created_at: project.created_at,
-							updated_at: project.updated_at
-						}
+						data = ProjectHelpers.buildProjectResponse(project, projectSkillsData)
 						break
 					}
 					case 'Certification': {
 						const cert = sectionData[0] as any
-						data = {
-							id: cert.id,
-							name: cert.name,
-							issuing_organization: cert.issuing_organization,
-							issue_date: cert.issue_date,
-							credential_url: cert.credential_url,
-							created_at: cert.created_at,
-							updated_at: cert.updated_at
-						}
+						data = CertificationHelpers.buildCertificationResponse(cert)
 						break
 					}
 					case 'Skill': {
@@ -589,22 +540,7 @@ export const ResumeService = {
 						if (eduQuery.length > 0) {
 							const edu = eduQuery[0]
 							const country = edu.country_code ? countryMap.get(edu.country_code) || null : null
-
-							data = {
-								id: edu.id,
-								institution_name: edu.institution_name,
-								field_of_study: edu.field_of_study,
-								degree: edu.degree,
-								country,
-								started_from_month: edu.started_from_month,
-								started_from_year: edu.started_from_year,
-								finished_at_month: edu.finished_at_month,
-								finished_at_year: edu.finished_at_year,
-								current: edu.current,
-								description: edu.description,
-								created_at: edu.created_at,
-								updated_at: edu.updated_at
-							}
+							data = EducationHelpers.buildEducationResponse(edu, country)
 						}
 						break
 					}
@@ -619,23 +555,7 @@ export const ResumeService = {
 						if (expQuery.length > 0) {
 							const exp = expQuery[0]
 							const country = exp.country_code ? countryMap.get(exp.country_code) || null : null
-
-							data = {
-								id: exp.id,
-								company_name: exp.company_name,
-								job_title: exp.job_title,
-								employment_type: exp.employment_type,
-								city: exp.city,
-								country,
-								started_from_month: exp.started_from_month,
-								started_from_year: exp.started_from_year,
-								finished_at_month: exp.finished_at_month,
-								finished_at_year: exp.finished_at_year,
-								current: exp.current,
-								description: exp.description,
-								created_at: exp.created_at,
-								updated_at: exp.updated_at
-							}
+							data = ExperienceHelpers.buildExperienceResponse(exp, country)
 						}
 						break
 					}
@@ -686,32 +606,8 @@ export const ResumeService = {
 							const skillsUsed = projSkillIds
 								.map(ps => skillMap.get(ps.skill_id))
 								.filter(s => s != null)
-								.map(s => ({
-									id: s.id,
-									name: s.name,
-									category: s.category,
-									preferred: s.preferred,
-									created_at: s.created_at,
-									updated_at: s.updated_at
-								}))
 
-							data = {
-								id: proj.id,
-								name: proj.name,
-								category: proj.category,
-								description: proj.description,
-								role: proj.role,
-								github_url: proj.github_url,
-								live_url: proj.live_url,
-								started_from_month: proj.started_from_month,
-								started_from_year: proj.started_from_year,
-								finished_at_month: proj.finished_at_month,
-								finished_at_year: proj.finished_at_year,
-								current: proj.current,
-								skills_used: skillsUsed,
-								created_at: proj.created_at,
-								updated_at: proj.updated_at
-							}
+							data = ProjectHelpers.buildProjectResponse(proj, skillsUsed)
 						}
 						break
 					}
@@ -725,15 +621,7 @@ export const ResumeService = {
 
 						if (certQuery.length > 0) {
 							const cert = certQuery[0]
-							data = {
-								id: cert.id,
-								name: cert.name,
-								issuing_organization: cert.issuing_organization,
-								issue_date: cert.issue_date,
-								credential_url: cert.credential_url,
-								created_at: cert.created_at,
-								updated_at: cert.updated_at
-							}
+							data = CertificationHelpers.buildCertificationResponse(cert)
 						}
 						break
 					}

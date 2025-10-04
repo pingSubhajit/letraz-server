@@ -2,15 +2,35 @@ import {and, eq} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {db} from '@/services/resume/database'
 import type {
+	Education,
 	EducationCreateRequest,
 	EducationPathParams,
 	EducationResponse,
 	EducationUpdateRequest,
 	EducationWithIdParams
 } from '@/services/resume/interface'
+import type {Country} from '@/services/core/interface'
 import {educations, resumeSections, ResumeSectionType} from '@/services/resume/schema'
 import {ResumeService} from '@/services/resume/service'
 import log from 'encore.dev/log'
+
+/**
+ * Helper Functions
+ * Internal utilities for education operations
+ */
+export const EducationHelpers = {
+	/**
+	 * Build education response with country data
+	 */
+	buildEducationResponse: (education: Education, country: Country | null): EducationResponse => {
+		return {
+			...education,
+			country,
+			user: education.user_id,
+			resume_section: education.resume_section_id
+		}
+	}
+}
 
 /**
  * Education Service
@@ -54,12 +74,7 @@ export const EducationService = {
 				const edu = eduQuery[0]
 				const country = edu.country_code ? countryMap.get(edu.country_code) || null : null
 
-				validEducations.push({
-					...edu,
-					country,
-					user: edu.user_id,
-					resume_section: edu.resume_section_id
-				})
+				validEducations.push(EducationHelpers.buildEducationResponse(edu, country))
 			}
 		})
 
@@ -106,12 +121,7 @@ export const EducationService = {
 			}
 		}
 
-		return {
-			...edu,
-			country,
-			user: edu.user_id,
-			resume_section: edu.resume_section_id
-		}
+		return EducationHelpers.buildEducationResponse(edu, country)
 	},
 
 	/**
@@ -164,12 +174,7 @@ export const EducationService = {
 			sectionId: edu.id
 		})
 
-		return {
-			...edu,
-			country,
-			user: edu.user_id,
-			resume_section: edu.resume_section_id
-		}
+		return EducationHelpers.buildEducationResponse(edu, country)
 	},
 
 	/**
@@ -252,12 +257,7 @@ export const EducationService = {
 			})
 		}
 
-		return {
-			...updatedEdu,
-			country,
-			user: updatedEdu.user_id,
-			resume_section: updatedEdu.resume_section_id
-		}
+		return EducationHelpers.buildEducationResponse(updatedEdu, country)
 	},
 
 	/**

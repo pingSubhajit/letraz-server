@@ -2,14 +2,34 @@ import {and, eq} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {db} from '@/services/resume/database'
 import type {
+	Experience,
 	ExperienceCreateRequest,
 	ExperiencePathParams,
 	ExperienceResponse,
 	ExperienceUpdateRequest,
 	ExperienceWithIdParams
 } from '@/services/resume/interface'
+import type {Country} from '@/services/core/interface'
 import {experiences, resumeSections, ResumeSectionType} from '@/services/resume/schema'
 import {ResumeService} from '@/services/resume/service'
+
+/**
+ * Helper Functions
+ * Internal utilities for experience operations
+ */
+export const ExperienceHelpers = {
+	/**
+	 * Build experience response with country data
+	 */
+	buildExperienceResponse: (experience: Experience, country: Country | null): ExperienceResponse => {
+		return {
+			...experience,
+			country,
+			user: experience.user_id,
+			resume_section: experience.resume_section_id
+		}
+	}
+}
 
 /**
  * Experience Service
@@ -53,12 +73,7 @@ export const ExperienceService = {
 				const exp = expQuery[0]
 				const country = exp.country_code ? countryMap.get(exp.country_code) || null : null
 
-				validExperiences.push({
-					...exp,
-					country,
-					user: exp.user_id,
-					resume_section: exp.resume_section_id
-				})
+				validExperiences.push(ExperienceHelpers.buildExperienceResponse(exp, country))
 			}
 		})
 
@@ -105,12 +120,7 @@ export const ExperienceService = {
 			}
 		}
 
-		return {
-			...exp,
-			country,
-			user: exp.user_id,
-			resume_section: exp.resume_section_id
-		}
+		return ExperienceHelpers.buildExperienceResponse(exp, country)
 	},
 
 	/**
@@ -165,12 +175,7 @@ export const ExperienceService = {
 			sectionId: exp.id
 		})
 
-		return {
-			...exp,
-			country,
-			user: exp.user_id,
-			resume_section: exp.resume_section_id
-		}
+		return ExperienceHelpers.buildExperienceResponse(exp, country)
 	},
 
 	/**
@@ -258,12 +263,7 @@ export const ExperienceService = {
 			})
 		}
 
-		return {
-			...updatedExp,
-			country,
-			user: updatedExp.user_id,
-			resume_section: updatedExp.resume_section_id
-		}
+		return ExperienceHelpers.buildExperienceResponse(updatedExp, country)
 	},
 
 	/**
