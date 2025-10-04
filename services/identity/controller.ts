@@ -14,7 +14,7 @@ interface UserResponse extends User {}
  * Returns the currently authenticated user's information
  */
 export const getCurrentUser = api(
-	{expose: true, method: 'GET', path: '/identity/me', auth: true},
+	{expose: true, method: 'GET', path: '/user', auth: true},
 	async (): Promise<UserResponse> => {
 		const authData = getAuthData() as AuthData
 
@@ -27,7 +27,7 @@ export const getCurrentUser = api(
  * Allows authenticated users to update their own profile information
  */
 export const updateCurrentUser = api(
-	{expose: true, method: 'PUT', path: '/identity/me', auth: true},
+	{expose: true, method: 'PATCH', path: '/user', auth: true},
 	async (data: UpdateProfileRequest): Promise<UserResponse> => {
 		const authData = getAuthData() as AuthData
 		const userId = authData.user.id

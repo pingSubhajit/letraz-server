@@ -11,7 +11,7 @@ export interface User {
 	last_name?: string | null
 	email: string
 	phone?: string | null
-	dob?: Date | null
+	dob?: string | null
 	nationality?: string | null
 	address?: string | null
 	city?: string | null
@@ -78,7 +78,7 @@ export interface UpdateProfileRequest {
 	first_name?: string & MinLen<1>
 	last_name?: string | null
 	phone?: string | null
-	dob?: Date | null
+	dob?: string | Date | null
 	nationality?: string | null
 	address?: string | null
 	city?: string | null

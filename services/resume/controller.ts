@@ -21,11 +21,7 @@ import type {
 	ExportResumeResponse,
 	GetResumeParams,
 	GlobalSkillCategoriesResponse,
-	GlobalSkillsResponse,
-	ListProficienciesResponse,
 	ListResumesParams,
-	ListResumesResponse,
-	ProficiencyResponse,
 	ProjectCreateRequest,
 	ProjectPathParams,
 	ProjectResponse,
@@ -34,12 +30,13 @@ import type {
 	RearrangeSectionsRequest,
 	ReplaceResumeRequest,
 	ResumeResponse,
-	ResumeWithSections,
+	ResumeShort,
+	Skill,
 	SkillCategoriesResponse,
 	SkillPathParams,
+	SkillResponse,
 	SkillWithIdParams,
 	TailorResumeRequest,
-	TailorResumeResponse,
 	UpdateSkillRequest
 } from '@/services/resume/interface'
 import {ResumeService} from '@/services/resume/service'
@@ -58,7 +55,7 @@ import log from 'encore.dev/log'
  */
 export const listResumes = api(
 	{method: 'GET', path: '/resume', auth: true, expose: true},
-	async (params: ListResumesParams): Promise<ListResumesResponse> => {
+	async (params: ListResumesParams): Promise<{resumes: ResumeShort[]}> => {
 		return ResumeService.listResumes(params)
 	}
 )
@@ -71,8 +68,7 @@ export const listResumes = api(
 export const getResume = api(
 	{method: 'GET', path: '/resume/:id', auth: true, expose: true},
 	async ({id}: GetResumeParams): Promise<ResumeResponse> => {
-		const resume = await ResumeService.getResumeById({id})
-		return {resume}
+		return ResumeService.getResumeById({id})
 	}
 )
 
@@ -235,7 +231,7 @@ export const deleteExperience = api(
  */
 export const listSkills = api(
 	{method: 'GET', path: '/resume/:resume_id/skill', auth: true, expose: true},
-	async ({resume_id}: SkillPathParams): Promise<ListProficienciesResponse> => {
+	async ({resume_id}: SkillPathParams): Promise<{skills: SkillResponse[]}> => {
 		return SkillService.listSkills({resume_id})
 	}
 )
@@ -246,7 +242,7 @@ export const listSkills = api(
  */
 export const addSkill = api(
 	{method: 'POST', path: '/resume/:resume_id/skill', auth: true, expose: true},
-	async ({resume_id, ...data}: SkillPathParams & AddSkillRequest): Promise<ProficiencyResponse> => {
+	async ({resume_id, ...data}: SkillPathParams & AddSkillRequest): Promise<SkillResponse> => {
 		return SkillService.addSkill({resume_id, ...data})
 	}
 )
@@ -257,7 +253,7 @@ export const addSkill = api(
  */
 export const updateSkill = api(
 	{method: 'PATCH', path: '/resume/:resume_id/skill/:id', auth: true, expose: true},
-	async ({resume_id, id, ...data}: SkillWithIdParams & UpdateSkillRequest): Promise<ProficiencyResponse> => {
+	async ({resume_id, id, ...data}: SkillWithIdParams & UpdateSkillRequest): Promise<SkillResponse> => {
 		return SkillService.updateSkill({resume_id, id, ...data})
 	}
 )
@@ -296,8 +292,8 @@ export const getSkillCategories = api(
  * Useful for autocomplete/suggestions when adding skills
  */
 export const getAllSkills = api(
-	{method: 'GET', path: '/skills', auth: true, expose: true},
-	async (): Promise<GlobalSkillsResponse> => {
+	{method: 'GET', path: '/skill', auth: true, expose: true},
+	async (): Promise<{skills: Skill[]}> => {
 		return SkillService.getAllSkills()
 	}
 )
@@ -450,7 +446,7 @@ export const deleteCertification = api(
  */
 export const rearrangeSections = api(
 	{method: 'PUT', path: '/resume/:id/sections/rearrange', auth: true, expose: true},
-	async ({id, section_ids}: RearrangeSectionsRequest): Promise<ResumeWithSections> => {
+	async ({id, section_ids}: RearrangeSectionsRequest): Promise<ResumeResponse> => {
 		return ResumeService.rearrangeSections({id, section_ids})
 	}
 )
@@ -471,7 +467,7 @@ export const rearrangeSections = api(
  */
 export const replaceResume = api(
 	{method: 'PUT', path: '/resume/:id', auth: true, expose: true},
-	async ({id, sections}: ReplaceResumeRequest): Promise<ResumeWithSections> => {
+	async ({id, sections}: ReplaceResumeRequest): Promise<ResumeResponse> => {
 		return BulkReplaceService.replaceResume({id, sections})
 	}
 )
@@ -503,7 +499,7 @@ export const replaceResume = api(
  */
 export const tailorResume = api(
 	{method: 'POST', path: '/resume/tailor', auth: true, expose: true},
-	async (params: TailorResumeRequest): Promise<TailorResumeResponse> => {
+	async (params: TailorResumeRequest): Promise<ResumeResponse> => {
 		return ResumeService.tailorResume(params)
 	}
 )
@@ -527,7 +523,6 @@ export const tailorResume = api(
 export const getResumeByIdAdmin = api(
 	{method: 'GET', path: '/admin/resume/:id', auth: true, expose: true},
 	async ({id}: GetResumeParams): Promise<ResumeResponse> => {
-		const resume = await ResumeService.getResumeById({id})
-		return {resume}
+		return ResumeService.getResumeById({id})
 	}
 )

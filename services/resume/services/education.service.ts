@@ -136,11 +136,8 @@ export const EducationService = {
 		ResumeService.validateDateRange(data.started_from_month, data.started_from_year)
 		ResumeService.validateDateRange(data.finished_at_month, data.finished_at_year)
 
-		// Validate country code if provided
-		let country = null
-		if (data.country_code) {
-			country = await ResumeService.lookupCountry(data.country_code)
-		}
+		// Resolve country (handles both country and country_code fields)
+		const {country_code, country} = await ResumeService.resolveCountry(data.country, data.country_code)
 
 		// Create section
 		const sectionId = await ResumeService.createSectionForResume(resumeId, ResumeSectionType.Education)
@@ -156,7 +153,7 @@ export const EducationService = {
 				institution_name: data.institution_name,
 				field_of_study: data.field_of_study,
 				degree: data.degree || null,
-				country_code: data.country_code || null,
+				country_code,
 				started_from_month: ResumeService.parseNumericValue(data.started_from_month),
 				started_from_year: ResumeService.parseNumericValue(data.started_from_year),
 				finished_at_month: ResumeService.parseNumericValue(data.finished_at_month),
@@ -221,11 +218,21 @@ export const EducationService = {
 			)
 		}
 
-		// Validate country code if changed
+		// Resolve country if changed (handles both country and country_code fields)
 		let country = null
-		const countryCode = data.country_code ?? existingEdu.country_code
-		if (countryCode) {
-			country = await ResumeService.lookupCountry(countryCode)
+		let resolvedCountryCode = existingEdu.country_code
+
+		if (data.country !== undefined || data.country_code !== undefined) {
+			const resolved = await ResumeService.resolveCountry(data.country, data.country_code)
+			country = resolved.country
+			resolvedCountryCode = resolved.country_code
+		} else if (existingEdu.country_code) {
+			// If country not changed but exists, fetch it for response
+			try {
+				country = await ResumeService.lookupCountry(existingEdu.country_code)
+			} catch {
+				// Country lookup failed, leave as null
+			}
 		}
 
 		// Update education (partial update)
@@ -233,7 +240,7 @@ export const EducationService = {
 		if (data.institution_name !== undefined) updateData.institution_name = data.institution_name
 		if (data.field_of_study !== undefined) updateData.field_of_study = data.field_of_study
 		if (data.degree !== undefined) updateData.degree = data.degree
-		if (data.country_code !== undefined) updateData.country_code = data.country_code
+		if (data.country !== undefined || data.country_code !== undefined) updateData.country_code = resolvedCountryCode
 		if (data.started_from_month !== undefined) updateData.started_from_month = ResumeService.parseNumericValue(data.started_from_month)
 		if (data.started_from_year !== undefined) updateData.started_from_year = ResumeService.parseNumericValue(data.started_from_year)
 		if (data.finished_at_month !== undefined) updateData.finished_at_month = ResumeService.parseNumericValue(data.finished_at_month)

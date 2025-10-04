@@ -20,7 +20,7 @@ export interface AlgoliaResumeDocument {
 	/** Resume ID (same as objectID, kept for compatibility) */
 	id: string
 	/** User ID who owns this resume */
-	user_id: string
+	user: string
 	/** Associated job information (if tailored) */
 	job: AlgoliaJobReference | null
 	/** Resume status (display value) */
@@ -46,6 +46,8 @@ export interface AlgoliaJobReference {
 	company_name: string
 	/** Location */
 	location: string | null
+	/** Job status */
+	status: string | null
 }
 
 /**

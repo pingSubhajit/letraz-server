@@ -5,10 +5,29 @@ import {
 	ResumeSectionType,
 	ResumeStatus
 } from '@/services/resume/schema'
-import {PaginatedResponse, PaginationParams} from '@/services/utils/pagination'
 import {IsURL, Max, Min, MinLen} from 'encore.dev/validate'
 import type {User} from '@/services/identity/interface'
 import type {Job} from '@/services/job/interface'
+
+/**
+ * ==========================================
+ * TYPE DEFINITIONS
+ * ==========================================
+ */
+
+/**
+ * Employment Type Label
+ * Union type of all possible employment type labels for API responses
+ */
+export type EmploymentTypeLabel =
+	| 'Full Time'
+	| 'Part Time'
+	| 'Contract'
+	| 'Internship'
+	| 'Freelance'
+	| 'Self Employed'
+	| 'Volunteer'
+	| 'Trainee'
 
 /**
  * ==========================================
@@ -73,7 +92,7 @@ export interface Resume {
  */
 export interface ResumeSection {
 	id: string
-	resume_id: string
+	resume: string
 	index: number
 	type: ResumeSectionType
 	created_at: Date
@@ -151,9 +170,11 @@ export interface Project {
  */
 export interface Certification {
 	id: string
+	user: string
+	resume_section: string
 	name: string
 	issuing_organization: string | null
-	issue_date: Date | null
+	issue_date: string | null
 	credential_url: string | null
 	created_at: Date
 	updated_at: Date
@@ -202,10 +223,11 @@ export interface EducationResponse
  * Experience response
  */
 export interface ExperienceResponse
-	extends Omit<Experience, 'user_id' | 'resume_section_id' | 'country_code'> {
+	extends Omit<Experience, 'user_id' | 'resume_section_id' | 'country_code' | 'employment_type'> {
 	user: string
 	resume_section: string
 	country: CountryReference | null
+	employment_type: EmploymentTypeLabel
 }
 
 /**
@@ -217,7 +239,7 @@ export interface CertificationResponse extends Certification {}
  * Section Data Union Type
  */
 export type SectionData =
-	| {skills: ProficiencyWithSkill[]}
+	| {skills: SkillResponse[]}
 	| EducationResponse
 	| ExperienceResponse
 	| ProjectResponse
@@ -228,11 +250,7 @@ export type SectionData =
  * Resume Section with Data
  * Full section with nested content
  */
-export interface ResumeSectionWithData {
-	id: string
-	resume_id: string
-	index: number
-	type: ResumeSectionType
+export interface ResumeSectionWithData extends ResumeSection{
 	data: SectionData
 }
 
@@ -250,7 +268,7 @@ export type ResumeJob = Job
  * Full Resume Response
  * Complete resume with all nested sections
  */
-export interface ResumeWithSections {
+export interface ResumeResponse {
 	id: string
 	base: boolean
 	user: ResumeUser
@@ -269,7 +287,7 @@ export interface ResumeWithSections {
 export interface ResumeShort {
 	id: string
 	base: boolean
-	user: ResumeUser
+	user: string
 	job: ResumeJob | null
 	status: ResumeStatus | null
 	thumbnail: string | null
@@ -302,7 +320,7 @@ export interface DeleteResumeParams {
 /**
  * List Resumes Request
  */
-export interface ListResumesParams extends PaginationParams {
+export interface ListResumesParams {
 	/** Filter by status */
 	status?: ResumeStatus
 	/** Filter by base resume */
@@ -323,6 +341,7 @@ export interface EducationCreateRequest {
 	field_of_study: string
 	degree?: string
 	country_code?: string
+	country?: string | CountryReference
 	started_from_month?: (number & Min<1> & Max<12>) | string
 	started_from_year?: (number & Min<1900> & Max<2100>) | string
 	finished_at_month?: (number & Min<1> & Max<12>) | string
@@ -339,6 +358,7 @@ export interface EducationUpdateRequest {
 	field_of_study?: string
 	degree?: string
 	country_code?: string
+	country?: string | CountryReference
 	started_from_month?: (number & Min<1> & Max<12>) | string
 	started_from_year?: (number & Min<1900> & Max<2100>) | string
 	finished_at_month?: (number & Min<1> & Max<12>) | string
@@ -377,6 +397,7 @@ export interface ExperienceCreateRequest {
 	employment_type: EmploymentType
 	city?: string
 	country_code?: string
+	country?: string | CountryReference
 	started_from_month?: (number & Min<1> & Max<12>) | string
 	started_from_year?: (number & Min<1900> & Max<2100>) | string
 	finished_at_month?: (number & Min<1> & Max<12>) | string
@@ -394,6 +415,7 @@ export interface ExperienceUpdateRequest {
 	employment_type?: EmploymentType
 	city?: string
 	country_code?: string
+	country?: string | CountryReference
 	started_from_month?: (number & Min<1> & Max<12>) | string
 	started_from_year?: (number & Min<1900> & Max<2100>) | string
 	finished_at_month?: (number & Min<1> & Max<12>) | string
@@ -428,7 +450,7 @@ export interface ExperienceWithIdParams {
  */
 export interface SkillInput {
 	name: string
-	category?: string
+	category?: string | null
 }
 
 /**
@@ -518,7 +540,7 @@ export interface ProjectWithIdParams extends ProjectPathParams {
 export interface CertificationCreateRequest {
 	name: string
 	issuing_organization?: string
-	issue_date?: Date
+	issue_date?: string | Date
 	credential_url?: string & IsURL
 }
 
@@ -528,7 +550,7 @@ export interface CertificationCreateRequest {
 export interface CertificationUpdateRequest {
 	name?: string
 	issuing_organization?: string
-	issue_date?: Date
+	issue_date?: string | Date
 	credential_url?: string & IsURL
 }
 
@@ -595,17 +617,6 @@ export interface TailorResumeRequest {
  * ==========================================
  */
 
-/**
- * Resume Response (Single)
- */
-export interface ResumeResponse {
-	resume: ResumeWithSections
-}
-
-/**
- * Resume List Response (Paginated)
- */
-export interface ListResumesResponse extends PaginatedResponse<ResumeShort> {}
 
 /**
  * Skill Categories Response
@@ -614,12 +625,6 @@ export interface SkillCategoriesResponse {
 	categories: string[]
 }
 
-/**
- * Tailor Resume Response
- */
-export interface TailorResumeResponse {
-	resume: ResumeWithSections
-}
 
 /**
  * ==========================================
@@ -649,13 +654,13 @@ export interface Skill {
  * Proficiency with full skill details
  * Used for read operations
  */
-export interface ProficiencyWithSkill {
+export interface SkillResponse {
 	/** Proficiency record ID */
 	id: string
 	/** Full skill details */
 	skill: Skill
-	/** Proficiency level (optional) */
 	level: ProficiencyLevel | null
+	resume_section: string
 }
 
 /**
@@ -700,32 +705,10 @@ export interface SkillWithIdParams extends SkillPathParams {
 }
 
 /**
- * Single proficiency response
- */
-export interface ProficiencyResponse {
-	proficiency: ProficiencyWithSkill
-}
-
-/**
- * List of proficiencies response
- */
-export interface ListProficienciesResponse {
-	proficiencies: ProficiencyWithSkill[]
-}
-
-/**
  * Skill categories response
  */
 export interface SkillCategoriesResponse {
 	categories: string[]
-}
-
-/**
- * Global skills list response
- * Returns all skills in the system (not resume-specific)
- */
-export interface GlobalSkillsResponse {
-	skills: Skill[]
 }
 
 /**

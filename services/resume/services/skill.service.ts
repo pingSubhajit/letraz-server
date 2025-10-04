@@ -4,12 +4,10 @@ import {db} from '@/services/resume/database'
 import type {
 	AddSkillRequest,
 	GlobalSkillCategoriesResponse,
-	GlobalSkillsResponse,
-	ListProficienciesResponse,
-	ProficiencyResponse,
-	ProficiencyWithSkill,
+	Skill,
 	SkillCategoriesResponse,
 	SkillPathParams,
+	SkillResponse,
 	SkillWithIdParams,
 	UpdateSkillRequest
 } from '@/services/resume/interface'
@@ -31,7 +29,7 @@ import {ResumeService} from '@/services/resume/service'
  * Helper Functions
  * Internal utilities for skill operations
  */
-const SkillHelpers = {
+export const SkillHelpers = {
 	/**
 	 * Get all skill sections for a resume
 	 */
@@ -103,6 +101,18 @@ const SkillHelpers = {
 			}
 		})
 		return Array.from(categoriesSet).sort()
+	},
+
+	/**
+	 * Build skill response with proficiency level
+	 */
+	buildSkillResponse: (proficiencyId: string, skill: Skill, level: ProficiencyLevel | null, resumeSectionId: string): SkillResponse => {
+		return {
+			id: proficiencyId,
+			skill,
+			level,
+			resume_section: resumeSectionId
+		}
 	}
 }
 
@@ -111,7 +121,7 @@ export const SkillService = {
 	 * List all skills/proficiencies for a resume
 	 * Returns proficiencies with full skill details
 	 */
-	listSkills: async ({resume_id}: SkillPathParams): Promise<ListProficienciesResponse> => {
+	listSkills: async ({resume_id}: SkillPathParams): Promise<{skills: SkillResponse[]}> => {
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 
@@ -119,7 +129,7 @@ export const SkillService = {
 		const skillSections = await SkillHelpers.getSkillSections(resumeId)
 
 		if (skillSections.length === 0) {
-			return {proficiencies: []}
+			return {skills: []}
 		}
 
 		// Get proficiencies for all skill sections
@@ -133,20 +143,9 @@ export const SkillService = {
 			.innerJoin(skills, eq(proficiencies.skill_id, skills.id))
 			.where(SkillHelpers.buildSectionIdsWhere(sectionIds))
 
-		const proficienciesWithSkills: ProficiencyWithSkill[] = proficiencyRecords.map(record => ({
-			id: record.proficiency.id,
-			skill: {
-				id: record.skill.id,
-				category: record.skill.category,
-				name: record.skill.name,
-				preferred: record.skill.preferred,
-				created_at: record.skill.created_at,
-				updated_at: record.skill.updated_at
-			},
-			level: record.proficiency.level
-		}))
+		const proficienciesWithSkills: SkillResponse[] = proficiencyRecords.map(record => SkillHelpers.buildSkillResponse(record.proficiency.id, record.skill, record.proficiency.level, record.proficiency.resume_section_id))
 
-		return {proficiencies: proficienciesWithSkills}
+		return {skills: proficienciesWithSkills}
 	},
 
 	/**
@@ -155,7 +154,7 @@ export const SkillService = {
 	 * - Get or create skill section
 	 * - Create proficiency (or update if already exists)
 	 */
-	addSkill: async ({resume_id, ...data}: SkillPathParams & AddSkillRequest): Promise<ProficiencyResponse> => {
+	addSkill: async ({resume_id, ...data}: SkillPathParams & AddSkillRequest): Promise<SkillResponse> => {
 		const resumeId = await ResumeService.resolveResumeId(resume_id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 
@@ -210,20 +209,7 @@ export const SkillService = {
 				.where(eq(proficiencies.id, existingProficiency.id))
 				.returning()
 
-			return {
-				proficiency: {
-					id: updatedProficiency.id,
-					skill: {
-						id: skill.id,
-						category: skill.category,
-						name: skill.name,
-						preferred: skill.preferred,
-						created_at: skill.created_at,
-						updated_at: skill.updated_at
-					},
-					level: updatedProficiency.level
-				}
-			}
+			return SkillHelpers.buildSkillResponse(updatedProficiency.id, skill, updatedProficiency.level, skillSection.id)
 		}
 
 		// Create new proficiency
@@ -245,20 +231,7 @@ export const SkillService = {
 			changedFields: ['skill_id']
 		})
 
-		return {
-			proficiency: {
-				id: proficiency.id,
-				skill: {
-					id: skill.id,
-					category: skill.category,
-					name: skill.name,
-					preferred: skill.preferred,
-					created_at: skill.created_at,
-					updated_at: skill.updated_at
-				},
-				level: proficiency.level
-			}
-		}
+		return SkillHelpers.buildSkillResponse(proficiency.id, skill, proficiency.level, skillSection.id)
 	},
 
 	/**
@@ -270,7 +243,7 @@ export const SkillService = {
 		resume_id,
 		id,
 		...data
-	}: SkillWithIdParams & UpdateSkillRequest): Promise<ProficiencyResponse> => {
+	}: SkillWithIdParams & UpdateSkillRequest): Promise<SkillResponse> => {
 		// Validate UUID format
 		ResumeService.validateUUID(id, 'Proficiency')
 
@@ -358,20 +331,7 @@ export const SkillService = {
 			})
 		}
 
-		return {
-			proficiency: {
-				id: updatedProficiency.id,
-				skill: {
-					id: targetSkill.id,
-					category: targetSkill.category,
-					name: targetSkill.name,
-					preferred: targetSkill.preferred,
-					created_at: targetSkill.created_at,
-					updated_at: targetSkill.updated_at
-				},
-				level: updatedProficiency.level
-			}
-		}
+		return SkillHelpers.buildSkillResponse(updatedProficiency.id, targetSkill, updatedProficiency.level, proficiency.resume_section_id)
 	},
 
 	/**
@@ -469,7 +429,7 @@ export const SkillService = {
 	 * Useful for autocomplete/suggestions when adding skills
 	 * Returns all skills ordered by name
 	 */
-	getAllSkills: async (): Promise<GlobalSkillsResponse> => {
+	getAllSkills: async (): Promise<{skills: Skill[]}> => {
 		const allSkills = await db.select().from(skills).orderBy(skills.name)
 
 		return {skills: allSkills}

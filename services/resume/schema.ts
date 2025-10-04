@@ -1,6 +1,7 @@
 import * as p from 'drizzle-orm/pg-core'
 import {relations, sql} from 'drizzle-orm'
 import {nanoid} from 'nanoid'
+import {EmploymentTypeLabel} from '@/services/resume/interface'
 
 /**
  * Resume Status Enum
@@ -30,27 +31,44 @@ export enum ResumeSectionType {
 /**
  * Employment Type Enum
  * Represents types of employment for work experience
+ * Uses short codes for database storage
  */
 export enum EmploymentType {
-	FullTime = 'Full Time',
-	PartTime = 'Part Time',
-	Contract = 'Contract',
-	Internship = 'Internship',
-	Freelance = 'Freelance',
-	SelfEmployed = 'Self Employed',
-	Volunteer = 'Volunteer',
-	Trainee = 'Trainee'
+	FullTime = 'flt',
+	PartTime = 'prt',
+	Contract = 'con',
+	Internship = 'int',
+	Freelance = 'fre',
+	SelfEmployed = 'sel',
+	Volunteer = 'vol',
+	Trainee = 'tra'
+}
+
+/**
+ * Employment Type Labels
+ * Maps codes to human-readable labels for API responses
+ */
+export const EmploymentTypeLabels: Record<EmploymentType, EmploymentTypeLabel> = {
+	[EmploymentType.FullTime]: 'Full Time',
+	[EmploymentType.PartTime]: 'Part Time',
+	[EmploymentType.Contract]: 'Contract',
+	[EmploymentType.Internship]: 'Internship',
+	[EmploymentType.Freelance]: 'Freelance',
+	[EmploymentType.SelfEmployed]: 'Self Employed',
+	[EmploymentType.Volunteer]: 'Volunteer',
+	[EmploymentType.Trainee]: 'Trainee'
 }
 
 /**
  * Proficiency Level Enum
  * Represents skill proficiency levels
+ * Uses short codes for database storage
  */
 export enum ProficiencyLevel {
-	Beginner = 'Beginner',
-	Intermediate = 'Intermediate',
-	Advanced = 'Advanced',
-	Expert = 'Expert'
+	Beginner = 'BEG',
+	Intermediate = 'INT',
+	Advanced = 'ADV',
+	Expert = 'EXP'
 }
 
 /**

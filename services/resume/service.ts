@@ -27,22 +27,23 @@ import {EducationHelpers} from '@/services/resume/services/education.service'
 import {ExperienceHelpers} from '@/services/resume/services/experience.service'
 import {ProjectHelpers} from '@/services/resume/services/project.service'
 import {CertificationHelpers} from '@/services/resume/services/certification.service'
+import {SkillHelpers} from '@/services/resume/services/skill.service'
 import {
 	DeleteResumeParams,
 	ExportResumeParams,
 	ExportResumeResponse,
 	GetResumeParams,
 	ListResumesParams,
-	ListResumesResponse,
 	RearrangeSectionsRequest,
-	ResumeWithSections,
-	TailorResumeRequest,
-	TailorResumeResponse
+	ResumeResponse,
+	ResumeSectionWithData,
+	ResumeShort,
+	TailorResumeRequest
 } from '@/services/resume/interface'
 import type {Country} from '@/services/core/interface'
 import {AuthData} from '@/services/identity/auth'
 import {IdentityService} from '@/services/identity/service'
-import {and, count, desc, eq, inArray, max} from 'drizzle-orm'
+import {and, desc, eq, inArray, max} from 'drizzle-orm'
 import {core, job} from '~encore/clients'
 import {JobStatus} from '@/services/job/schema'
 import log from 'encore.dev/log'
@@ -195,10 +196,8 @@ export const ResumeService = {
 	/**
 	 * List all resumes for authenticated user
 	 */
-	async listResumes({page_size = 50, page, status, base}: ListResumesParams = {}): Promise<ListResumesResponse> {
+	async listResumes({status, base}: ListResumesParams = {}): Promise<{resumes: ResumeShort[]}> {
 		const userId = this.getAuthenticatedUserId()
-		const limit = Math.min(Math.max(page_size, 1), 200)
-		const offset = ((page || 1) - 1) * page_size
 
 		// Build query filters
 		const filters = [eq(resumes.user_id, userId)]
@@ -215,13 +214,10 @@ export const ResumeService = {
 			.from(resumes)
 			.where(and(...filters))
 			.orderBy(desc(resumes.created_at))
-			.limit(limit)
-			.offset(offset)
 
 		// Enrich with user and job data
 		const enrichedResumes = await Promise.all(
 			resumesData.map(async resume => {
-				const user = await this.fetchUserData(resume.user_id)
 				let jobData = null
 				if (resume.job_id) {
 					jobData = await this.fetchJobData(resume.job_id)
@@ -230,7 +226,7 @@ export const ResumeService = {
 				return {
 					id: resume.id,
 					base: resume.base,
-					user,
+					user: resume.user_id,
 					job: jobData,
 					status: resume.status,
 					thumbnail: resume.thumbnail,
@@ -240,24 +236,8 @@ export const ResumeService = {
 			})
 		)
 
-		// Get total count
-		const totalQuery = await db
-			.select({count: count()})
-			.from(resumes)
-			.where(and(...filters))
-
-		const total = totalQuery[0].count
-
-		const has_next = offset + page_size < total
-		const has_prev = !!offset
-
 		return {
-			data: enrichedResumes,
-			page: page || 1,
-			page_size: limit,
-			total,
-			has_next,
-			has_prev
+			resumes: enrichedResumes
 		}
 	},
 
@@ -267,7 +247,7 @@ export const ResumeService = {
 	async getResumeById(
 		{id}: GetResumeParams,
 		options?: {skipAuth?: boolean}
-	): Promise<ResumeWithSections> {
+	): Promise<ResumeResponse> {
 		const resumeId = await this.resolveResumeId(id)
 
 		// Only verify ownership if not explicitly skipped
@@ -374,7 +354,7 @@ export const ResumeService = {
 		})
 
 		// Build sections with nested data
-		const sectionsWithData = sections.map((section, idx) => {
+		const sectionsWithData = sections.map((section, idx): ResumeSectionWithData => {
 			let data = null
 			const sectionData = allSectionData[idx]
 
@@ -410,25 +390,14 @@ export const ResumeService = {
 						break
 					}
 					case 'Skill': {
-					// Build ProficiencyWithSkill array from pre-fetched data
+						// Build ProficiencyWithSkill array from pre-fetched data
 						const proficiencyRecords = sectionData as any[]
 						const proficienciesWithSkills = proficiencyRecords.map(prof => {
 							const skill = skillMap.get(prof.skill_id)
 							if (!skill) {
 								throw APIError.internal(`Skill not found for proficiency ${prof.id}`)
 							}
-							return {
-								id: prof.id,
-								skill: {
-									id: skill.id,
-									name: skill.name,
-									category: skill.category,
-									preferred: skill.preferred,
-									created_at: skill.created_at,
-									updated_at: skill.updated_at
-								},
-								level: prof.level
-							}
+							return SkillHelpers.buildSkillResponse(prof.id, skill, prof.level, prof.resume_section_id)
 						})
 
 						data = {skills: proficienciesWithSkills}
@@ -439,9 +408,11 @@ export const ResumeService = {
 
 			return {
 				id: section.id,
-				resume_id: section.resume_id,
+				resume: section.resume_id,
 				index: section.index,
 				type: section.type,
+				created_at: section.created_at,
+				updated_at: section.updated_at,
 				data
 			}
 		})
@@ -591,6 +562,61 @@ export const ResumeService = {
 	},
 
 	/**
+	 * Resolve country from various input formats
+	 * Handles both country_code (string) and country (string | CountryReference)
+	 */
+	resolveCountry: async (
+		country?: string | {code: string; name: string} | null,
+		country_code?: string | null
+	): Promise<{country_code: string | null; country: Country | null}> => {
+		// Priority: country field takes precedence over country_code
+		if (country) {
+			// If country is a string, treat it as a country code
+			if (typeof country === 'string') {
+				const countryData = await ResumeService.lookupCountry(country)
+				return {country_code: country, country: countryData}
+			}
+
+			// If country is an object (CountryReference), create it if doesn't exist
+			if (typeof country === 'object' && country.code && country.name) {
+				const normalizedCode = country.code.toUpperCase()
+
+				// Try to get existing country
+				try {
+					const existingCountry = await core.getCountry({code: normalizedCode})
+					return {country_code: normalizedCode, country: existingCountry}
+				} catch {
+					// Country doesn't exist, create it
+					try {
+						const newCountry = await core.createCountry({
+							code: normalizedCode,
+							name: country.name.trim()
+						})
+						return {country_code: normalizedCode, country: newCountry}
+					} catch (err) {
+						// If creation fails (e.g., race condition), try to get it again
+						try {
+							const existingCountry = await core.getCountry({code: normalizedCode})
+							return {country_code: normalizedCode, country: existingCountry}
+						} catch {
+							throw APIError.invalidArgument(`Failed to resolve country: ${country.code}`)
+						}
+					}
+				}
+			}
+		}
+
+		// Fallback to country_code if provided
+		if (country_code) {
+			const countryData = await ResumeService.lookupCountry(country_code)
+			return {country_code, country: countryData}
+		}
+
+		// No country information provided
+		return {country_code: null, country: null}
+	},
+
+	/**
 	 * Batch lookup countries
 	 * Fetches multiple countries in parallel and returns a map
 	 */
@@ -640,7 +666,7 @@ export const ResumeService = {
 	 * Rearrange resume sections
 	 * Uses two-phase update to avoid unique constraint violations
 	 */
-	rearrangeSections: async ({id, section_ids}: RearrangeSectionsRequest): Promise<ResumeWithSections> => {
+	rearrangeSections: async ({id, section_ids}: RearrangeSectionsRequest): Promise<ResumeResponse> => {
 		const resumeId = await ResumeService.resolveResumeId(id)
 		await ResumeService.verifyResumeOwnership(resumeId)
 
@@ -711,7 +737,7 @@ export const ResumeService = {
 	 * - If job scraping previously failed, retries by calling scrapeJob again
 	 * - If resume tailoring previously failed, creates new process and resets status
 	 */
-	async tailorResume({target}: TailorResumeRequest): Promise<TailorResumeResponse> {
+	async tailorResume({target}: TailorResumeRequest): Promise<ResumeResponse> {
 		const userId = this.getAuthenticatedUserId()
 
 		// Validate target
@@ -806,17 +832,11 @@ export const ResumeService = {
 				}
 
 				// Return the updated resume
-				const fullResume = await this.getResumeById({id: existingResume.id})
-				return {
-					resume: fullResume
-				}
+				return this.getResumeById({id: existingResume.id})
 			}
 
 			// Resume exists and is not failed - return it as-is
-			const fullResume = await this.getResumeById({id: existingResume.id})
-			return {
-				resume: fullResume
-			}
+			return this.getResumeById({id: existingResume.id})
 		}
 
 		// Create a new resume process for tracking tailoring
@@ -878,11 +898,7 @@ export const ResumeService = {
 		}
 
 		// Get the full resume with sections
-		const fullResume = await this.getResumeById({id: newResume.id})
-
-		return {
-			resume: fullResume
-		}
+		return this.getResumeById({id: newResume.id})
 	},
 
 	/**
@@ -941,10 +957,7 @@ export const ResumeService = {
 						}
 					}
 					: null,
-				sections: resumeWithSections.sections.map(section => ({
-					...section,
-					resume: section.resume_id // Util service expects 'resume' instead of 'resume_id'
-				}))
+				sections: resumeWithSections.sections
 			},
 			theme: 'DEFAULT_THEME'
 		}

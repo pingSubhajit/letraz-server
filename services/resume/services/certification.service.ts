@@ -85,14 +85,16 @@ export const CertificationHelpers = {
 
 	/**
 	 * Build clean certification response
-	 * Removes internal fields
+	 * Removes internal fields and formats date as ISO string (YYYY-MM-DD)
 	 */
 	buildCertificationResponse: (cert: typeof certifications.$inferSelect): Certification => {
 		return {
 			id: cert.id,
+			user: cert.user_id,
+			resume_section: cert.resume_section_id,
 			name: cert.name,
 			issuing_organization: cert.issuing_organization,
-			issue_date: cert.issue_date,
+			issue_date: cert.issue_date ? cert.issue_date.toISOString().split('T')[0] : null,
 			credential_url: cert.credential_url,
 			created_at: cert.created_at,
 			updated_at: cert.updated_at

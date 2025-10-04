@@ -9,7 +9,7 @@ import {
 	AlgoliaSectionDocument,
 	AlgoliaSkillsData
 } from '@/services/search/interface'
-import {ResumeSectionWithData, ResumeWithSections} from '@/services/resume/interface'
+import {ResumeResponse, ResumeSectionWithData} from '@/services/resume/interface'
 import {ResumeSectionType} from '@/services/resume/schema'
 import {secret} from 'encore.dev/config'
 import {algoliasearch} from 'algoliasearch'
@@ -88,17 +88,18 @@ export const AlgoliaService = {
 	 * Transform resume data to Algolia document format
 	 * Flattens nested structures and extracts searchable content
 	 */
-	transformResumeToAlgoliaDocument(resume: ResumeWithSections): AlgoliaResumeDocument {
+	transformResumeToAlgoliaDocument(resume: ResumeResponse): AlgoliaResumeDocument {
 		return {
 			objectID: resume.id,
 			id: resume.id,
-			user_id: resume.user.id,
+			user: resume.user.id,
 			job: resume.job
 				? {
 					id: resume.job.id,
 					title: resume.job.title,
 					company_name: resume.job.company_name,
-					location: resume.job.location
+					location: resume.job.location,
+					status: resume.job.status
 				}
 				: null,
 			status: resume.status,

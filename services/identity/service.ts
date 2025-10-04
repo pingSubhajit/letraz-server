@@ -5,6 +5,45 @@ import {users} from '@/services/identity/schema'
 import {db} from '@/services/identity/database'
 
 /**
+ * Helper Functions
+ */
+const IdentityHelpers = {
+	/**
+	 * Parse date input - accepts Date objects or date strings
+	 * Returns Date object or null
+	 */
+	parseDate: (dateInput: string | Date | null | undefined): Date | null => {
+		if (dateInput === undefined || dateInput === null) {
+			return null
+		}
+
+		if (dateInput instanceof Date) {
+			return dateInput
+		}
+
+		if (typeof dateInput === 'string') {
+			const parsed = new Date(dateInput)
+			if (isNaN(parsed.getTime())) {
+				throw APIError.invalidArgument('Invalid date format. Expected ISO date string (e.g., "2023-11-10")')
+			}
+			return parsed
+		}
+
+		throw APIError.invalidArgument('Date must be a string or Date object')
+	},
+
+	/**
+	 * Format user response - converts Date fields to strings
+	 */
+	formatUserResponse: (user: typeof users.$inferSelect): User => {
+		return {
+			...user,
+			dob: user.dob ? user.dob.toISOString().split('T')[0] : null
+		}
+	}
+}
+
+/**
  * Identity Service
  * Provides user identity management and CRUD operations
  */
@@ -29,7 +68,7 @@ export const IdentityService = {
 
 		if (existingUser) {
 			return {
-				user: existingUser as User,
+				user: IdentityHelpers.formatUserResponse(existingUser),
 				created: false
 			}
 		}
@@ -53,7 +92,7 @@ export const IdentityService = {
 			.returning()
 
 		return {
-			user: newUser as User,
+			user: IdentityHelpers.formatUserResponse(newUser),
 			created: true
 		}
 	},
@@ -66,7 +105,7 @@ export const IdentityService = {
 			where: eq(users.id, userId)
 		})
 
-		return user ? (user as User) : null
+		return user ? IdentityHelpers.formatUserResponse(user) : null
 	},
 
 	/**
@@ -77,20 +116,26 @@ export const IdentityService = {
 			where: eq(users.email, email)
 		})
 
-		return user ? (user as User) : null
+		return user ? IdentityHelpers.formatUserResponse(user) : null
 	},
 
 	/**
 	 * Update User
 	 */
 	updateUser: async (userId: string, data: UpdateUserInput): Promise<User> => {
-		const [updatedUser] = await db.update(users).set(data).where(eq(users.id, userId)).returning()
+		// Parse dob if provided
+		const updateData: Partial<typeof users.$inferInsert> = {
+			...data,
+			dob: data.dob !== undefined ? IdentityHelpers.parseDate(data.dob) : undefined
+		}
+
+		const [updatedUser] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning()
 
 		if (!updatedUser) {
 			throw APIError.notFound(`User with ID ${userId} not found`)
 		}
 
-		return updatedUser as User
+		return IdentityHelpers.formatUserResponse(updatedUser)
 	},
 
 	/**
@@ -106,7 +151,7 @@ export const IdentityService = {
 			})
 			.returning()
 
-		return newUser as User
+		return IdentityHelpers.formatUserResponse(newUser)
 	},
 
 	/**

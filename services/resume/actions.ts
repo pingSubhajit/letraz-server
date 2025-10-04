@@ -275,7 +275,7 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 					data: {
 						company_name: 'Tech Company Inc.',
 						job_title: 'Senior Software Engineer',
-						employment_type: 'Full-Time',
+						employment_type: 'flt',
 						city: 'San Francisco',
 						country_code: 'USA',
 						started_from_month: 1,
@@ -306,9 +306,9 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 					type: ResumeSectionType.Skill,
 					data: {
 						skills: [
-							{name: 'TypeScript', category: 'Programming Language', level: 'Expert'},
-							{name: 'React', category: 'Framework', level: 'Advanced'},
-							{name: 'Node.js', category: 'Runtime', level: 'Expert'}
+							{name: 'TypeScript', category: 'Programming Language', level: 'EXP'},
+							{name: 'React', category: 'Framework', level: 'ADV'},
+							{name: 'Node.js', category: 'Runtime', level: 'EXP'}
 						]
 					}
 				}

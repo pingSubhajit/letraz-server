@@ -19,11 +19,12 @@ import type {
 	ExperienceCreateRequest,
 	ProjectCreateRequest,
 	ReplaceResumeRequest,
-	ResumeWithSections,
+	ResumeResponse,
 	SectionReplaceInput,
 	SkillInput
 } from '@/services/resume/interface'
 import {ResumeService} from '@/services/resume/service'
+import {CertificationHelpers} from '@/services/resume/services/certification.service'
 import {and, eq, isNull, or} from 'drizzle-orm'
 import {core} from '~encore/clients'
 import type {NodePgDatabase} from 'drizzle-orm/node-postgres'
@@ -78,8 +79,9 @@ const Validators: {
 		if (!d.field_of_study || typeof d.field_of_study !== 'string') {
 			throw APIError.invalidArgument('Education: field_of_study is required')
 		}
-		if (!d.degree || typeof d.degree !== 'string') {
-			throw APIError.invalidArgument('Education: degree is required')
+		// degree is optional, but if provided must be a string
+		if (d.degree !== undefined && d.degree !== null && typeof d.degree !== 'string') {
+			throw APIError.invalidArgument('Education: degree must be a string')
 		}
 
 		// Validate date ranges if provided
@@ -331,9 +333,12 @@ const SectionCreators = {
 		data: EducationCreateRequest,
 		countryCodes: Set<string>
 	): Promise<void> => {
+		// Resolve country from country or country_code field
+		const {country_code} = await ResumeService.resolveCountry(data.country, data.country_code)
+
 		// Collect country code if present
-		if (data.country_code) {
-			countryCodes.add(data.country_code)
+		if (country_code) {
+			countryCodes.add(country_code)
 		}
 
 		await tx.insert(educations).values({
@@ -342,11 +347,11 @@ const SectionCreators = {
 			institution_name: data.institution_name.trim(),
 			field_of_study: data.field_of_study.trim(),
 			degree: data.degree?.trim() || null,
-			country_code: data.country_code || null,
-			started_from_month: data.started_from_month || null,
-			started_from_year: data.started_from_year || null,
-			finished_at_month: data.finished_at_month || null,
-			finished_at_year: data.finished_at_year || null,
+			country_code: country_code,
+			started_from_month: ResumeService.parseNumericValue(data.started_from_month),
+			started_from_year: ResumeService.parseNumericValue(data.started_from_year),
+			finished_at_month: ResumeService.parseNumericValue(data.finished_at_month),
+			finished_at_year: ResumeService.parseNumericValue(data.finished_at_year),
 			current: data.current ?? false,
 			description: data.description?.trim() || null
 		})
@@ -362,9 +367,12 @@ const SectionCreators = {
 		data: ExperienceCreateRequest,
 		countryCodes: Set<string>
 	): Promise<void> => {
+		// Resolve country from country or country_code field
+		const {country_code} = await ResumeService.resolveCountry(data.country, data.country_code)
+
 		// Collect country code if present
-		if (data.country_code) {
-			countryCodes.add(data.country_code)
+		if (country_code) {
+			countryCodes.add(country_code)
 		}
 
 		const insertData: any = {
@@ -373,11 +381,11 @@ const SectionCreators = {
 			company_name: data.company_name.trim(),
 			job_title: data.job_title.trim(),
 			city: data.city?.trim() || null,
-			country_code: data.country_code || null,
-			started_from_month: data.started_from_month || null,
-			started_from_year: data.started_from_year || null,
-			finished_at_month: data.finished_at_month || null,
-			finished_at_year: data.finished_at_year || null,
+			country_code: country_code,
+			started_from_month: ResumeService.parseNumericValue(data.started_from_month),
+			started_from_year: ResumeService.parseNumericValue(data.started_from_year),
+			finished_at_month: ResumeService.parseNumericValue(data.finished_at_month),
+			finished_at_year: ResumeService.parseNumericValue(data.finished_at_year),
 			current: data.current ?? false,
 			description: data.description?.trim() || null
 		}
@@ -405,10 +413,10 @@ const SectionCreators = {
 				role: data.role?.trim() || null,
 				github_url: data.github_url || null,
 				live_url: data.live_url || null,
-				started_from_month: data.started_from_month || null,
-				started_from_year: data.started_from_year || null,
-				finished_at_month: data.finished_at_month || null,
-				finished_at_year: data.finished_at_year || null,
+				started_from_month: ResumeService.parseNumericValue(data.started_from_month),
+				started_from_year: ResumeService.parseNumericValue(data.started_from_year),
+				finished_at_month: ResumeService.parseNumericValue(data.finished_at_month),
+				finished_at_year: ResumeService.parseNumericValue(data.finished_at_year),
 				current: data.current ?? false
 			})
 			.returning()
@@ -431,12 +439,15 @@ const SectionCreators = {
 	 * Create Certification section
 	 */
 	createCertification: async (tx: TransactionType, userId: string, sectionId: string, data: CertificationCreateRequest): Promise<void> => {
+		// Parse date if provided
+		const parsedDate = CertificationHelpers.parseDate(data.issue_date)
+
 		await tx.insert(certifications).values({
 			user_id: userId,
 			resume_section_id: sectionId,
 			name: data.name.trim(),
 			issuing_organization: data.issuing_organization?.trim() || null,
-			issue_date: data.issue_date || null,
+			issue_date: parsedDate,
 			credential_url: data.credential_url || null
 		})
 	},
@@ -476,7 +487,7 @@ export const BulkReplaceService = {
 		userId: string,
 		resumeId: string,
 		sections: SectionReplaceInput[]
-	): Promise<ResumeWithSections> => {
+	): Promise<ResumeResponse> => {
 
 		// Phase 1: Validate ALL data before transaction
 		sections.forEach((section, idx) => {
@@ -579,7 +590,7 @@ export const BulkReplaceService = {
 	 * Public API version of replaceResume
 	 * Gets userId from auth context and verifies ownership
 	 */
-	replaceResume: async ({id, sections}: ReplaceResumeRequest): Promise<ResumeWithSections> => {
+	replaceResume: async ({id, sections}: ReplaceResumeRequest): Promise<ResumeResponse> => {
 		const userId = ResumeService.getAuthenticatedUserId()
 		const resumeId = await ResumeService.resolveResumeId(id)
 		await ResumeService.verifyResumeOwnership(resumeId)
