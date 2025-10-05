@@ -330,14 +330,6 @@ const userDeletedEventListener = new Subscription(userDeleted, 'trigger-user-del
 				source: event.source
 			}, 'pubsub')
 
-			// Debug log to verify what we're sending
-			log.info('Preparing Knock workflow trigger', {
-				user_id: event.user_id,
-				user_email: event.user_email,
-				recipient_email: event.user_email,
-				workflow: KnockWorkflows.USER_DELETION_FLOW
-			})
-
 			/*
 			 * Trigger the user-deletion-flow workflow
 			 * Use email as recipient since Knock uses email as user ID
