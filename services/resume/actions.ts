@@ -600,8 +600,9 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 					buffer_size: imageBuffer.length
 				})
 
-				// Upload to storage bucket
-				const filename = `${event.resume_id}.png`
+				// Generate filename with timestamp to track versions
+				const timestamp = Date.now()
+				const filename = `${event.resume_id}_${timestamp}.png`
 
 				await resumeThumbnails.upload(filename, imageBuffer, {
 					contentType: 'image/png'
@@ -610,25 +611,103 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 				// Get public URL
 				const thumbnailUrl = resumeThumbnails.publicUrl(filename)
 
-				// Update resume record with thumbnail URL
-				await db
-					.update(resumes)
-					.set({
-						thumbnail: thumbnailUrl
-					})
-					.where(eq(resumes.id, event.resume_id))
-
-				// Publish resume updated event for search indexing
-				await ResumeService.publishResumeUpdate({
-					resumeId: event.resume_id,
-					changeType: 'thumbnail_updated',
-					userId: event.user_id
+				log.info('Thumbnail uploaded to storage', {
+					resume_id: event.resume_id,
+					filename: filename,
+					timestamp: timestamp
 				})
+
+				// Fetch current resume to check for race conditions
+				const [currentResume] = await db
+					.select()
+					.from(resumes)
+					.where(eq(resumes.id, event.resume_id))
+					.limit(1)
+
+				if (!currentResume) {
+					log.warn('Resume not found, skipping thumbnail update', {
+						resume_id: event.resume_id
+					})
+					return
+				}
+
+				let shouldUpdate = true
+				let oldThumbnailFilename: string | null = null
+
+				// Check if existing thumbnail is newer (race condition protection)
+				if (currentResume.thumbnail) {
+					/*
+					 * Extract timestamp from existing thumbnail URL
+					 * Format: https://domain/bucket/rsm_xxx_1234567890.png
+					 */
+					const existingFilenameMatch = currentResume.thumbnail.match(/([^\/]+)_(\d+)\.png$/)
+					if (existingFilenameMatch) {
+						const existingTimestamp = parseInt(existingFilenameMatch[2], 10)
+						if (existingTimestamp >= timestamp) {
+							shouldUpdate = false
+							log.info('Existing thumbnail is newer, skipping update', {
+								resume_id: event.resume_id,
+								existing_timestamp: existingTimestamp,
+								new_timestamp: timestamp
+							})
+						} else {
+							// Store old filename for deletion
+							oldThumbnailFilename = existingFilenameMatch[0]
+							log.info('Existing thumbnail is older, will update and delete old', {
+								resume_id: event.resume_id,
+								existing_timestamp: existingTimestamp,
+								new_timestamp: timestamp,
+								old_filename: oldThumbnailFilename
+							})
+						}
+					}
+				}
+
+				if (shouldUpdate) {
+					// Update resume record with thumbnail URL
+					await db
+						.update(resumes)
+						.set({
+							thumbnail: thumbnailUrl
+						})
+						.where(eq(resumes.id, event.resume_id))
+
+					log.info('Resume thumbnail updated in database', {
+						resume_id: event.resume_id,
+						thumbnail_url: thumbnailUrl
+					})
+
+					// Delete old thumbnail file if it exists
+					if (oldThumbnailFilename) {
+						try {
+							await resumeThumbnails.remove(oldThumbnailFilename)
+							log.info('Old thumbnail deleted from storage', {
+								resume_id: event.resume_id,
+								deleted_filename: oldThumbnailFilename
+							})
+						} catch (deleteErr) {
+							// Log but don't fail the operation if old thumbnail deletion fails
+							log.warn('Failed to delete old thumbnail', {
+								resume_id: event.resume_id,
+								old_filename: oldThumbnailFilename,
+								error: deleteErr instanceof Error ? deleteErr.message : 'Unknown error'
+							})
+						}
+					}
+
+					// Publish resume updated event for search indexing
+					await ResumeService.publishResumeUpdate({
+						resumeId: event.resume_id,
+						changeType: 'thumbnail_updated',
+						userId: event.user_id
+					})
+				}
 
 				log.info('Thumbnail generation completed successfully', {
 					resume_id: event.resume_id,
 					user_id: event.user_id,
-					thumbnail_url: thumbnailUrl
+					thumbnail_url: shouldUpdate ? thumbnailUrl : currentResume.thumbnail,
+					updated: shouldUpdate
 				})
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : 'Unknown error'
