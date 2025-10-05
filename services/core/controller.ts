@@ -14,6 +14,8 @@ import {
 	ListCountriesResponse,
 	RemoveFromWaitlistParams,
 	SeedCountriesResponse,
+	SeedWaitlistParams,
+	SeedWaitlistResponse,
 	UpdateWaitlistParams,
 	WaitlistResponse
 } from '@/services/core/interface'
@@ -144,4 +146,18 @@ export const seedCountries = api({
 	method: 'POST', path: '/admin/countries/seed', auth: true, expose: true
 }, async (): Promise<SeedCountriesResponse> => {
 	return CoreService.seedCountries()
+})
+
+/**
+ * Seed waitlist entries from Django migration.
+ * Accepts an array of waitlist entries and upserts them into the database.
+ * Idempotent operation - existing entries are skipped.
+ * Does not publish waitlist-submitted events (for migration purposes only).
+ * Admin endpoint - requires x-admin-api-key header for authentication.
+ * Accessible at POST /admin/waitlist/seed
+ */
+export const seedWaitlist = api({
+	method: 'POST', path: '/admin/waitlist/seed', auth: true, expose: true
+}, async (params: SeedWaitlistParams): Promise<SeedWaitlistResponse> => {
+	return CoreService.seedWaitlist(params)
 })

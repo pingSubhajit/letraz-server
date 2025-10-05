@@ -168,3 +168,41 @@ export interface ListCountriesParams extends PaginationParams {
  * Paginated list response for countries
  */
 export interface ListCountriesResponse extends PaginatedResponse<Country> {}
+
+/**
+ * Individual waitlist entry for seeding from Django migration
+ */
+export interface SeedWaitlistEntry {
+	/** UUID from Django database */
+	id: string
+	/** Email address */
+	email: string
+	/** Waiting number/position */
+	waiting_number: number
+	/** Created timestamp (ISO 8601 string) */
+	created_at: string
+	/** Referrer/source */
+	referrer: string
+	/** Whether user has access */
+	has_access: boolean
+}
+
+/**
+ * Request parameters for seeding waitlist entries
+ */
+export interface SeedWaitlistParams {
+	/** Array of waitlist entries to seed */
+	entries: SeedWaitlistEntry[]
+}
+
+/**
+ * Response for seed waitlist operation
+ */
+export interface SeedWaitlistResponse {
+	/** Number of entries seeded */
+	count: number
+	/** Number of entries skipped (already existed) */
+	skipped: number
+	/** Message describing the operation result */
+	message: string
+}

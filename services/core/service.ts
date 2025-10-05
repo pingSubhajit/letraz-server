@@ -8,6 +8,8 @@ import {
 	CreateCountryParams,
 	ListCountriesParams,
 	ListCountriesResponse,
+	SeedWaitlistParams,
+	SeedWaitlistResponse,
 	UpdateWaitlistParams,
 	WaitlistResponse
 } from '@/services/core/interface'
@@ -275,6 +277,79 @@ export const CoreService = {
 		return {
 			count: countriesToSeed.length,
 			message: `Successfully seeded ${countriesToSeed.length} countries`
+		}
+	},
+
+	/**
+	 * Seed waitlist entries from Django migration
+	 * Accepts an array of waitlist entries and inserts them into the database
+	 * Idempotent - skips entries with emails that already exist
+	 * Does NOT publish waitlist-submitted events (for migration purposes only)
+	 */
+	seedWaitlist: async ({entries}: SeedWaitlistParams): Promise<SeedWaitlistResponse> => {
+		if (!entries || entries.length === 0) {
+			return {
+				count: 0,
+				skipped: 0,
+				message: 'No entries provided'
+			}
+		}
+
+		// Validate entries
+		const validEntries = entries.filter(entry => entry.id &&
+			entry.email &&
+			entry.waiting_number !== undefined &&
+			entry.created_at &&
+			entry.referrer !== undefined &&
+			entry.has_access !== undefined)
+
+		if (validEntries.length === 0) {
+			throw APIError.invalidArgument('No valid entries provided')
+		}
+
+		// Get all emails that already exist in the database
+		const emailsToCheck = validEntries.map(e => e.email)
+		const existingEntries = await db
+			.select({email: waitlist.email})
+			.from(waitlist)
+			.where(inArray(waitlist.email, emailsToCheck))
+
+		const existingEmails = new Set(existingEntries.map(e => e.email))
+
+		// Filter to only new entries (not in database)
+		const newEntries = validEntries.filter(e => !existingEmails.has(e.email))
+
+		if (newEntries.length === 0) {
+			return {
+				count: 0,
+				skipped: validEntries.length,
+				message: `All ${validEntries.length} entries already exist`
+			}
+		}
+
+		// Prepare values for bulk insert
+		const valuesToInsert = newEntries.map(entry => ({
+			id: entry.id,
+			email: entry.email,
+			waiting_number: entry.waiting_number,
+			created_at: new Date(entry.created_at),
+			referrer: entry.referrer,
+			has_access: entry.has_access
+		}))
+
+		// Bulk insert with ON CONFLICT DO NOTHING for extra safety
+		await db
+			.insert(waitlist)
+			.values(valuesToInsert)
+			.onConflictDoNothing({target: waitlist.email})
+
+		const insertedCount = newEntries.length
+		const skippedCount = validEntries.length - insertedCount
+
+		return {
+			count: insertedCount,
+			skipped: skippedCount,
+			message: `Successfully seeded ${insertedCount} waitlist entries${skippedCount > 0 ? `, skipped ${skippedCount} existing` : ''}`
 		}
 	}
 }
