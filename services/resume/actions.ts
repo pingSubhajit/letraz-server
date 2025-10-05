@@ -507,25 +507,41 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 
 				/*
 				 * Launch headless browser
-				 * Use @sparticuz/chromium in production (AWS Fargate), regular puppeteer locally
+				 * Prefer system Chrome in production (provided by base image),
+				 * fall back to @sparticuz/chromium if not available.
 				 */
 				if (isProduction) {
-					log.info('Using @sparticuz/chromium for AWS Fargate', {
-						resume_id: event.resume_id
-					})
-
-					const executablePath = await chromium.executablePath()
-
-					log.info('Chrome executable path resolved', {
-						resume_id: event.resume_id,
-						executable_path: executablePath
-					})
-
-					browser = await puppeteerCore.launch({
-						args: chromium.args,
-						executablePath: executablePath,
-						headless: true
-					})
+					const systemExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH
+					if (systemExecutablePath) {
+						log.info('Using system Chrome for production', {
+							resume_id: event.resume_id,
+							executable_path: systemExecutablePath
+						})
+						browser = await puppeteerCore.launch({
+							executablePath: systemExecutablePath,
+							headless: true,
+							args: [
+								'--no-sandbox',
+								'--disable-setuid-sandbox',
+								'--disable-dev-shm-usage',
+								'--disable-gpu'
+							]
+						})
+					} else {
+						log.info('System Chrome not found, using @sparticuz/chromium fallback', {
+							resume_id: event.resume_id
+						})
+						const executablePath = await chromium.executablePath()
+						log.info('Chromium fallback executable path resolved', {
+							resume_id: event.resume_id,
+							executable_path: executablePath
+						})
+						browser = await puppeteerCore.launch({
+							args: chromium.args,
+							executablePath: executablePath,
+							headless: true
+						})
+					}
 				} else {
 					log.info('Using local puppeteer', {
 						resume_id: event.resume_id,

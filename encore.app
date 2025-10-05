@@ -3,7 +3,7 @@
 	"lang": "typescript",
 	"build": {
 		"docker": {
-			"base_image": "public.ecr.aws/lambda/nodejs:20"
+			"base_image": "ghcr.io/puppeteer/puppeteer:24.23.0"
 		}
 	}
 }
