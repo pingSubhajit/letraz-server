@@ -4,6 +4,7 @@ import {secret} from 'encore.dev/config'
 import {appMeta} from 'encore.dev'
 import {userCreated} from '@/services/identity/topics'
 import {jobScrapeFailed, jobScrapeSuccess} from '@/services/job/topics'
+import {userDeleted} from '@/services/webhooks/topics'
 import {db} from '@/services/resume/database'
 import {ProcessStatus, resumeProcesses, resumes, ResumeSectionType, ResumeStatus} from '@/services/resume/schema'
 import {
@@ -644,6 +645,54 @@ const thumbnailGenerationTriggeredListener = new Subscription(
 						})
 					}
 				}
+			}
+		}
+	}
+)
+
+/**
+ * User Deleted Subscription
+ * Handles user deletion events from webhooks service
+ * Deletes all resumes for the deleted user
+ */
+const userDeletedListener = new Subscription(
+	userDeleted,
+	'delete-user-resumes',
+	{
+		handler: async (event) => {
+			log.info('Processing user deletion - deleting resumes', {
+				user_id: event.user_id,
+				source: event.source
+			})
+
+			try {
+				const deletedCount = await ResumeService.deleteAllUserResumes(event.user_id)
+
+				log.info('Successfully deleted user resumes', {
+					user_id: event.user_id,
+					deleted_count: deletedCount
+				})
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+				log.error(error, 'Failed to delete user resumes', {
+					user_id: event.user_id,
+					error: errorMessage
+				})
+
+				captureException(error, {
+					tags: {
+						operation: 'user-deletion-resumes',
+						user_id: event.user_id
+					},
+					extra: {
+						source: event.source,
+						deleted_at: event.deleted_at
+					},
+					level: 'error'
+				})
+
+				// Re-throw to trigger retry
+				throw error
 			}
 		}
 	}

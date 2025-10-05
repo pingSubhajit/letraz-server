@@ -56,7 +56,7 @@ export interface UpdateUserInput {
 	last_name?: string | null
 	email?: string
 	phone?: string | null
-	dob?: Date | null
+	dob?: string | Date | null
 	nationality?: string | null
 	address?: string | null
 	city?: string | null

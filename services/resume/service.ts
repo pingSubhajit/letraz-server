@@ -1042,6 +1042,21 @@ export const ResumeService = {
 
 			throw APIError.internal(`Failed to export resume: ${errorMessage}`)
 		}
+	},
+
+	/**
+	 * Delete all resumes for a user
+	 * Used when a user is deleted from the system
+	 */
+	deleteAllUserResumes: async (userId: string): Promise<number> => {
+		const deletedResumes = await db.delete(resumes).where(eq(resumes.user_id, userId)).returning()
+
+		log.info('Deleted all resumes for user', {
+			user_id: userId,
+			count: deletedResumes.length
+		})
+
+		return deletedResumes.length
 	}
 
 }

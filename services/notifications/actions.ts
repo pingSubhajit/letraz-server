@@ -4,6 +4,7 @@ import {waitlistAccessGranted, waitlistSubmitted} from '@/services/core/topics'
 import {getKnock} from '@/services/notifications/knock'
 import {userCreated} from '@/services/identity/topics'
 import {resumeTailoringFailed, resumeTailoringSuccess} from '@/services/resume/topics'
+import {userDeleted} from '@/services/webhooks/topics'
 import {jobs} from '@/services/job/schema'
 import {eq} from 'drizzle-orm'
 import {db as jobDb} from '@/services/job/database'
@@ -258,6 +259,64 @@ const waitlistAccessGrantedEventListener = new Subscription(waitlistAccessGrante
 				extra: {
 					waitlist_id: event.id,
 					email: event.email,
+					event
+				},
+				level: 'error'
+			})
+		}
+	}
+})
+
+/**
+ * User Deleted Event Listener
+ * Triggers Knock workflow to send user-deletion-flow when user is deleted
+ */
+const userDeletedEventListener = new Subscription(userDeleted, 'trigger-user-deletion-flow', {
+	handler: async (event) => {
+		const knock = getKnock()
+		if (!knock) {
+			log.warn('Knock not configured; dropping user-deleted event', {
+				user_id: event.user_id
+			})
+			return
+		}
+
+		try {
+			addBreadcrumb('Triggering user-deletion-flow workflow', {
+				user_id: event.user_id,
+				source: event.source
+			}, 'pubsub')
+
+			// Trigger the user-deletion-flow workflow
+			await knock.workflows.trigger(KnockWorkflows.USER_DELETION_FLOW, {
+				recipients: [event.user_id],
+				data: {
+					user_id: event.user_id,
+					deleted_at: event.deleted_at.toISOString(),
+					source: event.source
+				}
+			})
+
+			log.info('User deletion flow workflow triggered successfully', {
+				user_id: event.user_id,
+				source: event.source
+			})
+		} catch (err) {
+			log.error(err as Error, 'Failed to trigger user-deletion-flow workflow', {
+				user_id: event.user_id,
+				source: event.source
+			})
+
+			// Report to Sentry for monitoring
+			captureException(err, {
+				tags: {
+					operation: 'knock-workflow-trigger',
+					event_type: 'user-deleted',
+					workflow: 'user-deletion-flow'
+				},
+				extra: {
+					user_id: event.user_id,
+					source: event.source,
 					event
 				},
 				level: 'error'
