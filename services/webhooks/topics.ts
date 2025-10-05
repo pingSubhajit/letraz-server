@@ -6,6 +6,7 @@ import {Topic} from 'encore.dev/pubsub'
  */
 export interface UserDeletedEvent {
 	user_id: string
+	user_email: string
 	deleted_at: Date
 	source: 'clerk' | 'manual'
 }

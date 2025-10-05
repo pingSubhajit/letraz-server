@@ -1,6 +1,7 @@
 import log from 'encore.dev/log'
 import type {ClerkWebhookPayload} from '@/services/webhooks/interface'
 import {userDeleted} from '@/services/webhooks/topics'
+import {identity} from '~encore/clients'
 
 /**
  * Webhooks Service
@@ -42,15 +43,33 @@ export const WebhooksService = {
 			timestamp: payload.timestamp
 		})
 
+		// Fetch user email before deletion (needed for Knock notification)
+		let userEmail: string
+		try {
+			const user = await identity.getUserById({id: userId})
+			userEmail = user.email
+		} catch (error) {
+			log.error(error as Error, 'Failed to fetch user email for deletion event', {
+				user_id: userId
+			})
+			/*
+			 * If we can't get the email, we can't send notifications
+			 * But we should still publish the event for other subscribers
+			 */
+			throw error
+		}
+
 		// Publish user-deleted event
 		await userDeleted.publish({
 			user_id: userId,
+			user_email: userEmail,
 			deleted_at: new Date(payload.timestamp),
 			source: 'clerk'
 		})
 
 		log.info('Published user-deleted event', {
-			user_id: userId
+			user_id: userId,
+			user_email: userEmail
 		})
 	}
 }

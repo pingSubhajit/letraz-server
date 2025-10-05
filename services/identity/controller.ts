@@ -59,3 +59,25 @@ export const getUserByEmail = api(
 		return user
 	}
 )
+
+interface UserByIdParams {
+	id: string
+}
+
+/**
+ * Get User by ID (Internal)
+ * Returns the information of the user identified by their ID
+ * This is an internal endpoint for service-to-service communication
+ */
+export const getUserById = api(
+	{expose: false, method: 'GET', path: '/identity/user/:id'},
+	async ({id}: UserByIdParams): Promise<UserResponse> => {
+		const user = await IdentityService.getUserById(id)
+
+		if (!user) {
+			throw APIError.notFound(`User with id ${id} not found`)
+		}
+
+		return user
+	}
+)

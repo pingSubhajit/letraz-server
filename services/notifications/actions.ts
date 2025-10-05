@@ -11,6 +11,7 @@ import {db as jobDb} from '@/services/job/database'
 import {KnockWorkflows} from '@/services/notifications/workflows'
 import {secret} from 'encore.dev/config'
 import {addBreadcrumb, captureException} from '@/services/utils/sentry'
+import {identity} from '~encore/clients'
 
 // Constants
 const CLIENT_URL = secret('ClientUrl')()
@@ -98,6 +99,9 @@ const resumeTailoringFailedEventListener = new Subscription(resumeTailoringFaile
 		}
 
 		try {
+			// Fetch user to get email for Knock (Knock uses email as user ID)
+			const user = await identity.getUserById({id: event.user_id})
+
 			// Fetch the job to get additional context for the notification
 			const [job] = await jobDb
 				.select()
@@ -114,7 +118,7 @@ const resumeTailoringFailedEventListener = new Subscription(resumeTailoringFaile
 			}
 
 			await knock.workflows.trigger(KnockWorkflows.RESUME_TAILORED_FAILED, {
-				recipients: [event.user_id],
+				recipients: [user.email],
 				data: {
 					resume_id: event.resume_id,
 					job_id: event.job_id,
@@ -129,7 +133,8 @@ const resumeTailoringFailedEventListener = new Subscription(resumeTailoringFaile
 				resume_id: event.resume_id,
 				job_id: event.job_id,
 				process_id: event.process_id,
-				user_id: event.user_id
+				user_id: event.user_id,
+				user_email: user.email
 			})
 		} catch (err) {
 			log.error(err as Error, 'Failed to send resume-tailoring-failed notification', {
@@ -137,6 +142,22 @@ const resumeTailoringFailedEventListener = new Subscription(resumeTailoringFaile
 				job_id: event.job_id,
 				process_id: event.process_id,
 				user_id: event.user_id
+			})
+
+			// Report to Sentry for monitoring
+			captureException(err, {
+				tags: {
+					operation: 'knock-workflow-trigger',
+					event_type: 'resume-tailoring-failed',
+					workflow: 'resume-tailored-failed'
+				},
+				extra: {
+					resume_id: event.resume_id,
+					job_id: event.job_id,
+					user_id: event.user_id,
+					event
+				},
+				level: 'error'
 			})
 		}
 	}
@@ -158,6 +179,9 @@ const resumeTailoringSuccessEventListener = new Subscription(resumeTailoringSucc
 		}
 
 		try {
+			// Fetch user to get email for Knock (Knock uses email as user ID)
+			const user = await identity.getUserById({id: event.user_id})
+
 			// Fetch the job to get additional context for the notification
 			const [job] = await jobDb
 				.select()
@@ -175,7 +199,7 @@ const resumeTailoringSuccessEventListener = new Subscription(resumeTailoringSucc
 
 			// Trigger Knock workflow for resume tailoring success
 			await knock.workflows.trigger(KnockWorkflows.RESUME_TAILORED, {
-				recipients: [event.user_id],
+				recipients: [user.email],
 				data: {
 					resume_id: event.resume_id,
 					job_id: event.job_id,
@@ -190,6 +214,7 @@ const resumeTailoringSuccessEventListener = new Subscription(resumeTailoringSucc
 				job_id: event.job_id,
 				process_id: event.process_id,
 				user_id: event.user_id,
+				user_email: user.email,
 				job_title: job?.title,
 				company_name: job?.company_name
 			})
@@ -199,6 +224,22 @@ const resumeTailoringSuccessEventListener = new Subscription(resumeTailoringSucc
 				job_id: event.job_id,
 				process_id: event.process_id,
 				user_id: event.user_id
+			})
+
+			// Report to Sentry for monitoring
+			captureException(err, {
+				tags: {
+					operation: 'knock-workflow-trigger',
+					event_type: 'resume-tailoring-success',
+					workflow: 'resume-tailored'
+				},
+				extra: {
+					resume_id: event.resume_id,
+					job_id: event.job_id,
+					user_id: event.user_id,
+					event
+				},
+				level: 'error'
 			})
 		}
 	}
@@ -276,7 +317,8 @@ const userDeletedEventListener = new Subscription(userDeleted, 'trigger-user-del
 		const knock = getKnock()
 		if (!knock) {
 			log.warn('Knock not configured; dropping user-deleted event', {
-				user_id: event.user_id
+				user_id: event.user_id,
+				user_email: event.user_email
 			})
 			return
 		}
@@ -284,12 +326,16 @@ const userDeletedEventListener = new Subscription(userDeleted, 'trigger-user-del
 		try {
 			addBreadcrumb('Triggering user-deletion-flow workflow', {
 				user_id: event.user_id,
+				user_email: event.user_email,
 				source: event.source
 			}, 'pubsub')
 
-			// Trigger the user-deletion-flow workflow
+			/*
+			 * Trigger the user-deletion-flow workflow
+			 * Use email as recipient since Knock uses email as user ID
+			 */
 			await knock.workflows.trigger(KnockWorkflows.USER_DELETION_FLOW, {
-				recipients: [event.user_id],
+				recipients: [event.user_email],
 				data: {
 					user_id: event.user_id,
 					deleted_at: event.deleted_at.toISOString(),
@@ -299,11 +345,13 @@ const userDeletedEventListener = new Subscription(userDeleted, 'trigger-user-del
 
 			log.info('User deletion flow workflow triggered successfully', {
 				user_id: event.user_id,
+				user_email: event.user_email,
 				source: event.source
 			})
 		} catch (err) {
 			log.error(err as Error, 'Failed to trigger user-deletion-flow workflow', {
 				user_id: event.user_id,
+				user_email: event.user_email,
 				source: event.source
 			})
 
@@ -316,6 +364,7 @@ const userDeletedEventListener = new Subscription(userDeleted, 'trigger-user-del
 				},
 				extra: {
 					user_id: event.user_id,
+					user_email: event.user_email,
 					source: event.source,
 					event
 				},
