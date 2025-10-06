@@ -1,9 +1,9 @@
 {
-  "name": "encore-ts-starter",
+  "name": "letraz-server",
   "private": true,
   "version": "0.0.1",
-  "description": "Encore Typescript Starter",
   "scripts": {
+    "dev": "encore run",
     "lint": "eslint",
     "lint:fix": "eslint --fix"
   },
