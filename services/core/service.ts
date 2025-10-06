@@ -10,6 +10,7 @@ import {
 	ListCountriesResponse,
 	SeedWaitlistParams,
 	SeedWaitlistResponse,
+	SyncWaitlistToLoopsResponse,
 	UpdateWaitlistParams,
 	WaitlistResponse
 } from '@/services/core/interface'
@@ -18,6 +19,9 @@ import {countries, waitlist} from '@/services/core/schema'
 import {waitlistAccessGranted, waitlistSubmitted} from '@/services/core/topics'
 import {asc, count, desc, eq, ilike, inArray, sql} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
+import {getPostHogPersonByEmail} from '@/services/analytics/posthog-management'
+import {LoopsContact, syncContactsToLoops, WAITLIST_MAILING_LISTS} from '@/services/core/loops'
+import log from 'encore.dev/log'
 
 export const CoreService = {
 	addToWaitlist: async ({email, referrer}: AddToWaitlistParams): Promise<WaitlistResponse> => {
@@ -350,6 +354,84 @@ export const CoreService = {
 			count: insertedCount,
 			skipped: skippedCount,
 			message: `Successfully seeded ${insertedCount} waitlist entries${skippedCount > 0 ? `, skipped ${skippedCount} existing` : ''}`
+		}
+	},
+
+	/**
+	 * Sync waitlist entries to Loops
+	 * Fetches all waitlist entries and syncs them to Loops with PostHog user IDs
+	 * This operation is idempotent - existing contacts in Loops will be updated
+	 */
+	syncWaitlistToLoops: async (): Promise<SyncWaitlistToLoopsResponse> => {
+		// Fetch all waitlist entries
+		const entries = await db.select().from(waitlist).orderBy(asc(waitlist.created_at))
+
+		if (entries.length === 0) {
+			return {
+				total: 0,
+				synced: 0,
+				failed: 0,
+				failed_emails: [],
+				message: 'No waitlist entries to sync'
+			}
+		}
+
+		log.info('Starting waitlist sync to Loops', {total: entries.length})
+
+		// Build contacts array with PostHog person IDs
+		const contacts: LoopsContact[] = []
+
+		// Process entries to get PostHog person data
+		for (const entry of entries) {
+			try {
+				// Try to get PostHog person by email
+				const person = await getPostHogPersonByEmail(entry.email)
+
+				// Extract first name and last name from PostHog properties if available
+				const firstName = person?.properties?.firstName as string | undefined
+				const lastName = person?.properties?.lastName as string | undefined
+
+				const contact: LoopsContact = {
+					email: entry.email,
+					userId: person?.id,
+					firstName,
+					lastName,
+					mailingLists: WAITLIST_MAILING_LISTS
+				}
+
+				contacts.push(contact)
+
+			} catch (err) {
+				log.error('Error processing waitlist entry for Loops sync', {
+					email: entry.email,
+					err: String(err)
+				})
+
+				// Still add the contact without PostHog data
+				contacts.push({
+					email: entry.email,
+					mailingLists: WAITLIST_MAILING_LISTS
+				})
+			}
+		}
+
+		// Sync all contacts to Loops
+		const result = await syncContactsToLoops(contacts)
+
+		const message = `Synced ${result.success} out of ${entries.length} waitlist entries to Loops${result.failed.length > 0 ? `, ${result.failed.length} failed` : ''}`
+
+		log.info('Completed waitlist sync to Loops', {
+			total: entries.length,
+			synced: result.success,
+			failed: result.failed.length
+		})
+
+		return {
+			total: entries.length,
+			synced: result.success,
+			failed: result.failed.length,
+			failed_emails: result.failed,
+			message
 		}
 	}
 }

@@ -16,6 +16,7 @@ import {
 	SeedCountriesResponse,
 	SeedWaitlistParams,
 	SeedWaitlistResponse,
+	SyncWaitlistToLoopsResponse,
 	UpdateWaitlistParams,
 	WaitlistResponse
 } from '@/services/core/interface'
@@ -160,4 +161,22 @@ export const seedWaitlist = api({
 	method: 'POST', path: '/admin/waitlist/seed', auth: true, expose: true
 }, async (params: SeedWaitlistParams): Promise<SeedWaitlistResponse> => {
 	return CoreService.seedWaitlist(params)
+})
+
+/**
+ * Sync waitlist entries to Loops.
+ * Fetches all waitlist entries and syncs them to Loops as audience contacts.
+ * For each entry, queries PostHog to get the person ID and name information,
+ * then creates/updates the contact in Loops with the mailing list subscriptions.
+ *
+ * This operation is idempotent - existing contacts in Loops will be updated
+ * without creating duplicates.
+ *
+ * Admin endpoint - requires x-admin-api-key header for authentication.
+ * Accessible at POST /admin/waitlist/sync-to-loops
+ */
+export const syncWaitlistToLoops = api({
+	method: 'POST', path: '/admin/waitlist/sync-to-loops', auth: true, expose: true
+}, async (): Promise<SyncWaitlistToLoopsResponse> => {
+	return CoreService.syncWaitlistToLoops()
 })

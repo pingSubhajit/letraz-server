@@ -206,3 +206,19 @@ export interface SeedWaitlistResponse {
 	/** Message describing the operation result */
 	message: string
 }
+
+/**
+ * Response for sync waitlist to Loops operation
+ */
+export interface SyncWaitlistToLoopsResponse {
+	/** Total number of waitlist entries processed */
+	total: number
+	/** Number of entries successfully synced to Loops */
+	synced: number
+	/** Number of entries that failed to sync */
+	failed: number
+	/** Array of email addresses that failed to sync */
+	failed_emails: string[]
+	/** Message describing the operation result */
+	message: string
+}
