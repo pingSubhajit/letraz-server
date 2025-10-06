@@ -164,13 +164,18 @@ export const seedWaitlist = api({
 })
 
 /**
- * Sync waitlist entries to Loops.
- * Fetches all waitlist entries and syncs them to Loops as audience contacts.
- * For each entry, queries PostHog to get the person ID and name information,
- * then creates/updates the contact in Loops with the mailing list subscriptions.
+ * Sync waitlist entries to Loops (async operation).
+ * Triggers a background job that fetches all waitlist entries and syncs them to Loops
+ * as audience contacts. For each entry, queries PostHog to get the person ID and name
+ * information, then creates/updates the contact in Loops with the mailing list subscriptions.
  *
- * This operation is idempotent - existing contacts in Loops will be updated
- * without creating duplicates.
+ * This operation:
+ * - Returns immediately with a queued status (no timeout risk)
+ * - Processes entries in batches of 50 with parallel API calls
+ * - Is idempotent - existing contacts in Loops will be updated without duplicates
+ * - Logs detailed progress and results for monitoring
+ *
+ * Check application logs to monitor sync progress and see results.
  *
  * Admin endpoint - requires x-admin-api-key header for authentication.
  * Accessible at POST /admin/waitlist/sync-to-loops

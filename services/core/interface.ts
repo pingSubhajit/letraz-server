@@ -211,14 +211,18 @@ export interface SeedWaitlistResponse {
  * Response for sync waitlist to Loops operation
  */
 export interface SyncWaitlistToLoopsResponse {
-	/** Total number of waitlist entries processed */
-	total: number
-	/** Number of entries successfully synced to Loops */
-	synced: number
-	/** Number of entries that failed to sync */
-	failed: number
-	/** Array of email addresses that failed to sync */
-	failed_emails: string[]
-	/** Message describing the operation result */
+	/** Message indicating sync has been queued */
 	message: string
+	/** Timestamp when the sync was triggered */
+	triggered_at: string
+}
+
+/**
+ * Event payload published when waitlist sync to Loops is triggered
+ */
+export interface WaitlistLoopsSyncTriggeredEvent {
+	/** Timestamp when the sync was triggered */
+	triggered_at: string
+	/** Optional admin identifier who triggered the sync */
+	triggered_by?: string
 }

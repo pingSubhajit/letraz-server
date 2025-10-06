@@ -20,7 +20,7 @@ import {waitlistAccessGranted, waitlistSubmitted} from '@/services/core/topics'
 import {asc, count, desc, eq, ilike, inArray, sql} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {getPostHogPersonByEmail} from '@/services/analytics/posthog-management'
-import {LoopsContact, syncContactsToLoops, WAITLIST_MAILING_LISTS} from '@/services/core/loops'
+import {LoopsContact, WAITLIST_MAILING_LISTS} from '@/services/core/loops'
 import log from 'encore.dev/log'
 
 export const CoreService = {
@@ -358,80 +358,142 @@ export const CoreService = {
 	},
 
 	/**
-	 * Sync waitlist entries to Loops
-	 * Fetches all waitlist entries and syncs them to Loops with PostHog user IDs
-	 * This operation is idempotent - existing contacts in Loops will be updated
+	 * Trigger waitlist sync to Loops (async operation)
+	 * Publishes an event that triggers background processing
+	 * Returns immediately without waiting for sync to complete
 	 */
 	syncWaitlistToLoops: async (): Promise<SyncWaitlistToLoopsResponse> => {
+		const triggeredAt = new Date().toISOString()
+
+		// Import the topic here to avoid circular dependencies
+		const {waitlistLoopsSyncTriggered} = await import('@/services/core/topics')
+
+		// Publish event to trigger background processing
+		await waitlistLoopsSyncTriggered.publish({
+			triggered_at: triggeredAt
+		})
+
+		log.info('Waitlist sync to Loops has been queued for background processing')
+
+		return {
+			message: 'Waitlist sync to Loops has been queued for background processing. Check logs for progress and results.',
+			triggered_at: triggeredAt
+		}
+	},
+
+	/**
+	 * Process waitlist sync to Loops (background worker)
+	 * Fetches all waitlist entries and syncs them to Loops in batches with parallel processing
+	 * This operation is idempotent - existing contacts in Loops will be updated
+	 */
+	processWaitlistLoopsSync: async (): Promise<void> => {
 		// Fetch all waitlist entries
 		const entries = await db.select().from(waitlist).orderBy(asc(waitlist.created_at))
 
 		if (entries.length === 0) {
-			return {
-				total: 0,
-				synced: 0,
-				failed: 0,
-				failed_emails: [],
-				message: 'No waitlist entries to sync'
-			}
+			log.info('No waitlist entries to sync to Loops')
+			return
 		}
 
 		log.info('Starting waitlist sync to Loops', {total: entries.length})
 
-		// Build contacts array with PostHog person IDs
-		const contacts: LoopsContact[] = []
+		// Configuration for batch processing
+		const BATCH_SIZE = 50 // Process 50 entries at a time
+		const POSTHOG_CONCURRENCY = 10 // Max 10 concurrent PostHog API calls
+		const LOOPS_CONCURRENCY = 10 // Max 10 concurrent Loops API calls
 
-		// Process entries to get PostHog person data
-		for (const entry of entries) {
-			try {
-				// Try to get PostHog person by email
-				const person = await getPostHogPersonByEmail(entry.email)
+		let totalSynced = 0
+		let totalFailed = 0
+		const failedEmails: string[] = []
 
-				// Extract first name and last name from PostHog properties if available
-				const firstName = person?.properties?.firstName as string | undefined
-				const lastName = person?.properties?.lastName as string | undefined
+		// Process entries in batches
+		for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+			const batch = entries.slice(i, i + BATCH_SIZE)
+			const batchNumber = Math.floor(i / BATCH_SIZE) + 1
+			const totalBatches = Math.ceil(entries.length / BATCH_SIZE)
 
-				const contact: LoopsContact = {
-					email: entry.email,
-					userId: person?.id,
-					firstName,
-					lastName,
-					mailingLists: WAITLIST_MAILING_LISTS
-				}
+			log.info(`Processing batch ${batchNumber}/${totalBatches}`, {
+				size: batch.length,
+				progress: `${i + batch.length}/${entries.length}`
+			})
 
-				contacts.push(contact)
+			// Build contacts array with PostHog person IDs (parallel with concurrency limit)
+			const contacts: LoopsContact[] = []
 
-			} catch (err) {
-				log.error('Error processing waitlist entry for Loops sync', {
-					email: entry.email,
-					err: String(err)
-				})
+			// Process PostHog lookups in parallel with concurrency limit
+			for (let j = 0; j < batch.length; j += POSTHOG_CONCURRENCY) {
+				const chunk = batch.slice(j, j + POSTHOG_CONCURRENCY)
 
-				// Still add the contact without PostHog data
-				contacts.push({
-					email: entry.email,
-					mailingLists: WAITLIST_MAILING_LISTS
+				const chunkResults = await Promise.allSettled(
+					chunk.map(async (entry) => {
+						try {
+							// Try to get PostHog person by email
+							const person = await getPostHogPersonByEmail(entry.email)
+
+							// Extract first name and last name from PostHog properties if available
+							const firstName = person?.properties?.firstName as string | undefined
+							const lastName = person?.properties?.lastName as string | undefined
+
+							return {
+								email: entry.email,
+								userId: person?.id,
+								firstName,
+								lastName,
+								mailingLists: WAITLIST_MAILING_LISTS
+							} as LoopsContact
+
+						} catch (err) {
+							log.error('Error fetching PostHog data for waitlist entry', {
+								email: entry.email,
+								err: String(err)
+							})
+
+							// Return contact without PostHog data
+							return {
+								email: entry.email,
+								mailingLists: WAITLIST_MAILING_LISTS
+							} as LoopsContact
+						}
+					})
+				)
+
+				// Add successful contacts to the array
+				chunkResults.forEach((result) => {
+					if (result.status === 'fulfilled') {
+						contacts.push(result.value)
+					}
 				})
 			}
+
+			// Sync contacts to Loops with concurrency limit
+			for (let k = 0; k < contacts.length; k += LOOPS_CONCURRENCY) {
+				const loopsChunk = contacts.slice(k, k + LOOPS_CONCURRENCY)
+
+				const loopsResults = await Promise.allSettled(
+					loopsChunk.map(contact => import('@/services/core/loops').then(m => m.upsertLoopsContact(contact)))
+				)
+
+				loopsResults.forEach((result, index) => {
+					if (result.status === 'fulfilled' && result.value === true) {
+						totalSynced++
+					} else {
+						totalFailed++
+						failedEmails.push(loopsChunk[index].email)
+					}
+				})
+			}
+
+			log.info(`Completed batch ${batchNumber}/${totalBatches}`, {
+				synced: totalSynced,
+				failed: totalFailed
+			})
 		}
-
-		// Sync all contacts to Loops
-		const result = await syncContactsToLoops(contacts)
-
-		const message = `Synced ${result.success} out of ${entries.length} waitlist entries to Loops${result.failed.length > 0 ? `, ${result.failed.length} failed` : ''}`
 
 		log.info('Completed waitlist sync to Loops', {
 			total: entries.length,
-			synced: result.success,
-			failed: result.failed.length
+			synced: totalSynced,
+			failed: totalFailed,
+			failed_emails: failedEmails.length > 0 ? failedEmails.slice(0, 10) : [] // Log first 10 failed emails
 		})
-
-		return {
-			total: entries.length,
-			synced: result.success,
-			failed: result.failed.length,
-			failed_emails: result.failed,
-			message
-		}
 	}
 }
