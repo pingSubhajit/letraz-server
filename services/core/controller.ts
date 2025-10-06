@@ -21,6 +21,7 @@ import {
 	WaitlistResponse
 } from '@/services/core/interface'
 import {CoreService} from '@/services/core/service'
+import log from 'encore.dev/log'
 
 /**
  * Core service health check. Returns the operational status and deployment
@@ -183,5 +184,6 @@ export const seedWaitlist = api({
 export const syncWaitlistToLoops = api({
 	method: 'POST', path: '/admin/waitlist/sync-to-loops', auth: true, expose: true
 }, async (): Promise<SyncWaitlistToLoopsResponse> => {
+	log.info('Syncing waitlist to Loops')
 	return CoreService.syncWaitlistToLoops()
 })

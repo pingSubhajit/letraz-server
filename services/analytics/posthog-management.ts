@@ -3,6 +3,7 @@ import {secret} from 'encore.dev/config'
 import {captureException} from '@/services/utils/sentry'
 
 const posthogManagementKey = secret('PosthogManagementKey')
+const posthogProjectId = secret('PosthogProjectId')
 const posthogHost = secret('PosthogHost') || 'https://us.i.posthog.com'
 
 /**
@@ -25,7 +26,7 @@ interface PostHogSearchResponse {
 
 /**
  * Get a person from PostHog by email
- * Uses the PostHog management API to search for a person by their email
+ * Uses the PostHog management API to search for a person by their email property
  *
  * @param email - Email address to search for
  * @returns PostHog person object or null if not found
@@ -33,18 +34,31 @@ interface PostHogSearchResponse {
 export const getPostHogPersonByEmail = async (email: string): Promise<PostHogPerson | null> => {
 	try {
 		const apiKey = posthogManagementKey()
-		if (!apiKey) {
-			log.warn('PostHog management key not configured; person lookup disabled')
+		const projectId = posthogProjectId()
+
+		if (!apiKey || !projectId) {
+			log.warn('PostHog management key or project ID not configured; person lookup disabled')
 			return null
 		}
 
 		const host = posthogHost()
+
 		/*
-		 * Use the persons API with search filter
-		 * PostHog API: GET /api/projects/:project_id/persons/?search=email
+		 * Use the persons API with property filter
+		 * PostHog API: GET /api/projects/:project_id/persons/?properties=[{"key":"email","value":"user@example.com","type":"person"}]
 		 */
-		const url = new URL(`${host}/api/persons/`)
-		url.searchParams.set('search', email)
+		const url = new URL(`${host}/api/projects/${projectId}/persons/`)
+		
+		// Build property filter for email search
+		const propertyFilter = JSON.stringify([
+			{
+				key: 'email',
+				value: email,
+				type: 'person'
+			}
+		])
+		
+		url.searchParams.set('properties', propertyFilter)
 
 		const response = await fetch(url.toString(), {
 			method: 'GET',
@@ -60,9 +74,11 @@ export const getPostHogPersonByEmail = async (email: string): Promise<PostHogPer
 				return null
 			}
 
+			const errorText = await response.text()
 			log.error('PostHog API error', {
 				status: response.status,
 				statusText: response.statusText,
+				error: errorText,
 				email
 			})
 
@@ -73,7 +89,8 @@ export const getPostHogPersonByEmail = async (email: string): Promise<PostHogPer
 				},
 				extra: {
 					email,
-					status: response.status
+					status: response.status,
+					error: errorText
 				}
 			})
 
@@ -89,7 +106,15 @@ export const getPostHogPersonByEmail = async (email: string): Promise<PostHogPer
 		}
 
 		// Return the first matching person
-		return data.results[0]
+		const person = data.results[0]
+		log.info('Found person in PostHog', {
+			email,
+			person_id: person.id,
+			has_firstName: !!person.properties?.firstName,
+			has_lastName: !!person.properties?.lastName
+		})
+
+		return person
 
 	} catch (err) {
 		log.error('Failed to get person from PostHog', {

@@ -16,11 +16,11 @@ import {
 } from '@/services/core/interface'
 import {db} from '@/services/core/database'
 import {countries, waitlist} from '@/services/core/schema'
-import {waitlistAccessGranted, waitlistSubmitted} from '@/services/core/topics'
+import {waitlistAccessGranted, waitlistLoopsSyncTriggered, waitlistSubmitted} from '@/services/core/topics'
 import {asc, count, desc, eq, ilike, inArray, sql} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {getPostHogPersonByEmail} from '@/services/analytics/posthog-management'
-import {LoopsContact, WAITLIST_MAILING_LISTS} from '@/services/core/loops'
+import {LoopsContact, upsertLoopsContact, WAITLIST_MAILING_LISTS} from '@/services/core/loops'
 import log from 'encore.dev/log'
 
 export const CoreService = {
@@ -363,10 +363,8 @@ export const CoreService = {
 	 * Returns immediately without waiting for sync to complete
 	 */
 	syncWaitlistToLoops: async (): Promise<SyncWaitlistToLoopsResponse> => {
+		log.info('Triggering waitlist sync to Loops')
 		const triggeredAt = new Date().toISOString()
-
-		// Import the topic here to avoid circular dependencies
-		const {waitlistLoopsSyncTriggered} = await import('@/services/core/topics')
 
 		// Publish event to trigger background processing
 		await waitlistLoopsSyncTriggered.publish({
@@ -470,7 +468,7 @@ export const CoreService = {
 				const loopsChunk = contacts.slice(k, k + LOOPS_CONCURRENCY)
 
 				const loopsResults = await Promise.allSettled(
-					loopsChunk.map(contact => import('@/services/core/loops').then(m => m.upsertLoopsContact(contact)))
+					loopsChunk.map(contact => upsertLoopsContact(contact))
 				)
 
 				loopsResults.forEach((result, index) => {
