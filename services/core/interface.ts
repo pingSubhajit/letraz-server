@@ -228,3 +228,49 @@ export interface WaitlistLoopsSyncTriggeredEvent {
 	/** Optional admin identifier who triggered the sync */
 	triggered_by?: string
 }
+
+/**
+ * Loops contact data structure
+ */
+export interface LoopsContact {
+	/** Email address of the contact */
+	email: string
+	/** PostHog user/person ID */
+	userId?: string
+	/** First name */
+	firstName?: string
+	/** Last name */
+	lastName?: string
+	/** Mailing list subscriptions */
+	mailingLists?: Record<string, boolean>
+}
+
+/**
+ * Loops API response for finding a contact
+ */
+export interface LoopsFindContactResponse {
+	/** Loops contact ID */
+	id?: string
+	/** Email address */
+	email?: string
+	/** User ID */
+	userId?: string
+	/** First name */
+	firstName?: string
+	/** Last name */
+	lastName?: string
+	/** Mailing list subscriptions */
+	mailingLists?: Record<string, boolean>
+}
+
+/**
+ * Loops API response for creating/updating contact
+ */
+export interface LoopsContactResponse {
+	/** Success status */
+	success: boolean
+	/** Loops contact ID */
+	id?: string
+	/** Response message */
+	message?: string
+}

@@ -8,6 +8,7 @@ import {
 	CreateCountryParams,
 	ListCountriesParams,
 	ListCountriesResponse,
+	LoopsContact,
 	SeedWaitlistParams,
 	SeedWaitlistResponse,
 	SyncWaitlistToLoopsResponse,
@@ -20,13 +21,7 @@ import {waitlistAccessGranted, waitlistLoopsSyncTriggered, waitlistSubmitted} fr
 import {asc, count, desc, eq, ilike, inArray, sql} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {getPostHogPersonByEmail} from '@/services/analytics/posthog-management'
-import {
-	findLoopsContact,
-	LoopsContact,
-	needsSync,
-	upsertLoopsContact,
-	WAITLIST_MAILING_LISTS
-} from '@/services/core/loops'
+import {findLoopsContact, needsSync, upsertLoopsContact, WAITLIST_MAILING_LISTS} from '@/services/core/loops'
 import log from 'encore.dev/log'
 
 export const CoreService = {
@@ -390,8 +385,8 @@ export const CoreService = {
 		// Configuration for batch processing
 		const BATCH_SIZE = 50 // Process 50 entries at a time
 		const POSTHOG_CONCURRENCY = 10 // Max 10 concurrent PostHog API calls
-		const LOOPS_CHECK_CONCURRENCY = 10 // Max 10 concurrent Loops check API calls
-		const LOOPS_SYNC_CONCURRENCY = 5 // Max 5 concurrent Loops sync API calls (lower to avoid rate limits)
+		const LOOPS_CHECK_CONCURRENCY = 5 // Max 5 concurrent Loops check API calls (rate limit safe)
+		const LOOPS_SYNC_CONCURRENCY = 5 // Max 5 concurrent Loops sync API calls (rate limit safe)
 
 		let totalSynced = 0
 		let totalSkipped = 0
@@ -457,15 +452,16 @@ export const CoreService = {
 				})
 			}
 
-			// Check which contacts need syncing by comparing with Loops
+			// Check which contacts need syncing with rate limiting
 			const contactsToSync: LoopsContact[] = []
 
-			// Check existing contacts in Loops with concurrency limit
+			// Check existing contacts in Loops with concurrency limit and rate limiting
 			for (let k = 0; k < contacts.length; k += LOOPS_CHECK_CONCURRENCY) {
 				const checkChunk = contacts.slice(k, k + LOOPS_CHECK_CONCURRENCY)
 
 				const checkResults = await Promise.allSettled(
 					checkChunk.map(async (contact) => {
+						// Rate-limited check if contact exists in Loops
 						const existingContact = await findLoopsContact(contact.email)
 						const shouldSync = needsSync(contact, existingContact)
 

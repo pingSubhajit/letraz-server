@@ -1,40 +1,9 @@
 import log from 'encore.dev/log'
 import {secret} from 'encore.dev/config'
 import {captureException} from '@/services/utils/sentry'
+import {LoopsContact, LoopsContactResponse, LoopsFindContactResponse} from '@/services/core/interface'
 
 const loopsApiKey = secret('LoopsApiKey')
-
-/**
- * Loops contact data structure
- */
-export interface LoopsContact {
-	email: string
-	userId?: string
-	firstName?: string
-	lastName?: string
-	mailingLists?: Record<string, boolean>
-}
-
-/**
- * Loops API response for finding a contact
- */
-interface LoopsFindContactResponse {
-	id?: string
-	email?: string
-	userId?: string
-	firstName?: string
-	lastName?: string
-	mailingLists?: Record<string, boolean>
-}
-
-/**
- * Loops API response for creating/updating contact
- */
-interface LoopsContactResponse {
-	success: boolean
-	id?: string
-	message?: string
-}
 
 /**
  * Mailing list IDs for Letraz waitlist subscribers
@@ -49,7 +18,89 @@ export const WAITLIST_MAILING_LISTS = {
 }
 
 /**
- * Find a contact in Loops by email
+ * Rate limiter state for Loops API
+ */
+let rateLimitRemaining = 10 // Start with default 10 req/sec
+let rateLimitLimit = 10
+
+/**
+ * Sleep utility for rate limiting
+ */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+/**
+ * Make a rate-limited request to Loops API with exponential backoff
+ * 
+ * @param url - API endpoint URL
+ * @param options - Fetch options
+ * @param maxRetries - Maximum number of retries (default: 5)
+ * @returns Response or null on failure
+ */
+const rateLimitedFetch = async (
+	url: string,
+	options: RequestInit,
+	maxRetries = 5
+): Promise<Response | null> => {
+	for (let attempt = 0; attempt < maxRetries; attempt++) {
+		try {
+			// If we're running low on rate limit, wait a bit
+			if (rateLimitRemaining <= 1) {
+				log.info('Rate limit low, waiting before next request', {
+					remaining: rateLimitRemaining,
+					limit: rateLimitLimit
+				})
+				await sleep(1000) // Wait 1 second for rate limit to reset
+				rateLimitRemaining = rateLimitLimit // Reset our counter
+			}
+
+			const response = await fetch(url, options)
+
+			// Update rate limit state from response headers
+			const limitHeader = response.headers.get('x-ratelimit-limit')
+			const remainingHeader = response.headers.get('x-ratelimit-remaining')
+
+			if (limitHeader) rateLimitLimit = parseInt(limitHeader, 10)
+			if (remainingHeader) rateLimitRemaining = parseInt(remainingHeader, 10)
+
+			// Handle rate limiting with exponential backoff
+			if (response.status === 429) {
+				const retryAfter = response.headers.get('retry-after')
+				const waitTime = retryAfter
+					? parseInt(retryAfter, 10) * 1000
+					: Math.pow(2, attempt) * 1000 // Exponential backoff
+
+				log.warn('Rate limited by Loops API, retrying...', {
+					attempt: attempt + 1,
+					maxRetries,
+					waitTimeMs: waitTime,
+					rateLimitRemaining
+				})
+
+				await sleep(waitTime)
+				continue // Retry
+			}
+
+			return response
+
+		} catch (err) {
+			log.error('Error in rate-limited fetch', {
+				err: String(err),
+				attempt: attempt + 1,
+				url
+			})
+
+			if (attempt < maxRetries - 1) {
+				const waitTime = Math.pow(2, attempt) * 1000
+				await sleep(waitTime)
+			}
+		}
+	}
+
+	return null
+}
+
+/**
+ * Find a contact in Loops by email with rate limiting
  * 
  * @param email - Email address to search for
  * @returns Contact object or null if not found
@@ -65,12 +116,17 @@ export const findLoopsContact = async (email: string): Promise<LoopsFindContactR
 		// Loops API endpoint for finding a contact
 		const url = `https://app.loops.so/api/v1/contacts/find?email=${encodeURIComponent(email)}`
 
-		const response = await fetch(url, {
+		const response = await rateLimitedFetch(url, {
 			method: 'GET',
 			headers: {
 				'Authorization': `Bearer ${apiKey}`
 			}
 		})
+
+		if (!response) {
+			log.error('Failed to fetch contact from Loops after retries', {email})
+			return null
+		}
 
 		if (!response.ok) {
 			// 404 means contact doesn't exist
@@ -152,7 +208,7 @@ export const needsSync = (contact: LoopsContact, existingContact: LoopsFindConta
 }
 
 /**
- * Create or update a contact in Loops
+ * Create or update a contact in Loops with rate limiting
  * This operation is idempotent - if the contact already exists, it will be updated
  */
 export const upsertLoopsContact = async (contact: LoopsContact): Promise<boolean> => {
@@ -166,7 +222,7 @@ export const upsertLoopsContact = async (contact: LoopsContact): Promise<boolean
 		// Loops API endpoint for creating/updating contacts
 		const url = 'https://app.loops.so/api/v1/contacts/update'
 
-		const response = await fetch(url, {
+		const response = await rateLimitedFetch(url, {
 			method: 'PUT',
 			headers: {
 				'Authorization': `Bearer ${apiKey}`,
@@ -174,6 +230,13 @@ export const upsertLoopsContact = async (contact: LoopsContact): Promise<boolean
 			},
 			body: JSON.stringify(contact)
 		})
+
+		if (!response) {
+			log.error('Failed to upsert contact in Loops after retries', {
+				email: contact.email
+			})
+			return false
+		}
 
 		if (!response.ok) {
 			const errorText = await response.text()
@@ -234,30 +297,4 @@ export const upsertLoopsContact = async (contact: LoopsContact): Promise<boolean
 	}
 }
 
-/**
- * Sync multiple contacts to Loops with PostHog user IDs
- */
-export const syncContactsToLoops = async (
-	contacts: LoopsContact[]
-): Promise<{success: number; failed: string[]}> => {
-	const results = await Promise.allSettled(
-		contacts.map(contact => upsertLoopsContact(contact))
-	)
-
-	let successCount = 0
-	const failedEmails: string[] = []
-
-	results.forEach((result, index) => {
-		if (result.status === 'fulfilled' && result.value === true) {
-			successCount++
-		} else {
-			failedEmails.push(contacts[index].email)
-		}
-	})
-
-	return {
-		success: successCount,
-		failed: failedEmails
-	}
-}
 
