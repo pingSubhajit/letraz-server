@@ -43,26 +43,13 @@ export const CoreService = {
 		})
 		return waitlistEntry
 	},
-	getAllWaitlist: async ({page_size = 50, page, order = 'asc'}: AllWaitlistParams = {}): Promise<AllWaitlistResponse> => {
-		const limit = Math.min(Math.max(page_size, 1), 200)
-		const offset = ((page || 1) - 1) * page_size
+	getAllWaitlist: async ({order = 'asc'}: AllWaitlistParams = {}): Promise<AllWaitlistResponse> => {
 		const data = await db.select().from(waitlist).orderBy(
 			order === 'desc' ? desc(waitlist.waiting_number) : asc(waitlist.waiting_number)
-		).limit(limit).offset(offset)
-
-
-		const total = (await db.select({count: count()}).from(waitlist))[0].count
-		const has_next = offset + page_size < total
-		const has_prev = !!offset
-
+		)
 
 		return {
-			data,
-			page: page || 1,
-			page_size: limit,
-			total,
-			has_next,
-			has_prev
+			waitlists: data
 		}
 	},
 	removeFromWaitlist: async (email: string): Promise<void> => {

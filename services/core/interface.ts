@@ -47,7 +47,7 @@ export interface WaitlistResponse {
 /**
  * Query parameters for listing waitlist entries.
  */
-export interface AllWaitlistParams extends PaginationParams {
+export interface AllWaitlistParams {
 	/** Sort order for results by creation time. */
 	order?: 'asc' | 'desc'
 }
@@ -55,7 +55,9 @@ export interface AllWaitlistParams extends PaginationParams {
 /**
  * Paginated list response for waitlist entries.
  */
-export interface AllWaitlistResponse extends PaginatedResponse<WaitlistResponse> {}
+export interface AllWaitlistResponse {
+	waitlists: WaitlistResponse[]
+}
 
 /**
  * Event payload for waitlist deletion.
