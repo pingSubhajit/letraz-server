@@ -363,7 +363,6 @@ export const CoreService = {
 	 * Returns immediately without waiting for sync to complete
 	 */
 	syncWaitlistToLoops: async (): Promise<SyncWaitlistToLoopsResponse> => {
-		log.info('Triggering waitlist sync to Loops')
 		const triggeredAt = new Date().toISOString()
 
 		// Publish event to trigger background processing
