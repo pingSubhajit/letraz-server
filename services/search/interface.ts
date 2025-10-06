@@ -48,6 +48,16 @@ export interface AlgoliaJobReference {
 	location: string | null
 	/** Job status */
 	status: string | null
+	/** Job URL */
+	job_url: string | null
+	/** Job description (searchable) */
+	description: string | null
+	/** Salary information */
+	salary: {
+		min: number | null
+		max: number | null
+		currency: string | null
+	} | null
 }
 
 /**

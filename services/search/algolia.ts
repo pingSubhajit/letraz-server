@@ -99,7 +99,16 @@ export const AlgoliaService = {
 					title: resume.job.title,
 					company_name: resume.job.company_name,
 					location: resume.job.location,
-					status: resume.job.status
+					status: resume.job.status,
+					job_url: resume.job.job_url,
+					description: resume.job.description,
+					salary: resume.job.salary_min || resume.job.salary_max || resume.job.currency
+						? {
+							min: resume.job.salary_min,
+							max: resume.job.salary_max,
+							currency: resume.job.currency
+						}
+						: null
 				}
 				: null,
 			status: resume.status,
