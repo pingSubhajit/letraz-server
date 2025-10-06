@@ -20,7 +20,13 @@ import {waitlistAccessGranted, waitlistLoopsSyncTriggered, waitlistSubmitted} fr
 import {asc, count, desc, eq, ilike, inArray, sql} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {getPostHogPersonByEmail} from '@/services/analytics/posthog-management'
-import {LoopsContact, upsertLoopsContact, WAITLIST_MAILING_LISTS} from '@/services/core/loops'
+import {
+	findLoopsContact,
+	LoopsContact,
+	needsSync,
+	upsertLoopsContact,
+	WAITLIST_MAILING_LISTS
+} from '@/services/core/loops'
 import log from 'encore.dev/log'
 
 export const CoreService = {
@@ -384,9 +390,11 @@ export const CoreService = {
 		// Configuration for batch processing
 		const BATCH_SIZE = 50 // Process 50 entries at a time
 		const POSTHOG_CONCURRENCY = 10 // Max 10 concurrent PostHog API calls
-		const LOOPS_CONCURRENCY = 10 // Max 10 concurrent Loops API calls
+		const LOOPS_CHECK_CONCURRENCY = 10 // Max 10 concurrent Loops check API calls
+		const LOOPS_SYNC_CONCURRENCY = 5 // Max 5 concurrent Loops sync API calls (lower to avoid rate limits)
 
 		let totalSynced = 0
+		let totalSkipped = 0
 		let totalFailed = 0
 		const failedEmails: string[] = []
 
@@ -449,26 +457,72 @@ export const CoreService = {
 				})
 			}
 
-			// Sync contacts to Loops with concurrency limit
-			for (let k = 0; k < contacts.length; k += LOOPS_CONCURRENCY) {
-				const loopsChunk = contacts.slice(k, k + LOOPS_CONCURRENCY)
+			// Check which contacts need syncing by comparing with Loops
+			const contactsToSync: LoopsContact[] = []
 
-				const loopsResults = await Promise.allSettled(
-					loopsChunk.map(contact => upsertLoopsContact(contact))
+			// Check existing contacts in Loops with concurrency limit
+			for (let k = 0; k < contacts.length; k += LOOPS_CHECK_CONCURRENCY) {
+				const checkChunk = contacts.slice(k, k + LOOPS_CHECK_CONCURRENCY)
+
+				const checkResults = await Promise.allSettled(
+					checkChunk.map(async (contact) => {
+						const existingContact = await findLoopsContact(contact.email)
+						const shouldSync = needsSync(contact, existingContact)
+
+						if (shouldSync) {
+							log.info('Contact needs sync', {
+								email: contact.email,
+								exists: !!existingContact,
+								has_userId: !!contact.userId
+							})
+							return contact
+						} else {
+							log.info('Contact already up-to-date in Loops, skipping', {
+								email: contact.email
+							})
+							totalSkipped++
+							return null
+						}
+					})
 				)
 
-				loopsResults.forEach((result, index) => {
-					if (result.status === 'fulfilled' && result.value === true) {
-						totalSynced++
-					} else {
-						totalFailed++
-						failedEmails.push(loopsChunk[index].email)
+				// Collect contacts that need syncing
+				checkResults.forEach((result) => {
+					if (result.status === 'fulfilled' && result.value !== null) {
+						contactsToSync.push(result.value)
 					}
 				})
 			}
 
+			// Sync only the contacts that need updates with lower concurrency to avoid rate limits
+			if (contactsToSync.length > 0) {
+				log.info(`Syncing ${contactsToSync.length} contacts that need updates`, {
+					batch: batchNumber,
+					total_in_batch: contacts.length,
+					skipped_in_batch: contacts.length - contactsToSync.length
+				})
+
+				for (let k = 0; k < contactsToSync.length; k += LOOPS_SYNC_CONCURRENCY) {
+					const syncChunk = contactsToSync.slice(k, k + LOOPS_SYNC_CONCURRENCY)
+
+					const syncResults = await Promise.allSettled(
+						syncChunk.map(contact => upsertLoopsContact(contact))
+					)
+
+					syncResults.forEach((result, index) => {
+						if (result.status === 'fulfilled' && result.value === true) {
+							totalSynced++
+						} else {
+							totalFailed++
+							failedEmails.push(syncChunk[index].email)
+						}
+					})
+				}
+			}
+
 			log.info(`Completed batch ${batchNumber}/${totalBatches}`, {
 				synced: totalSynced,
+				skipped: totalSkipped,
 				failed: totalFailed
 			})
 		}
@@ -476,6 +530,7 @@ export const CoreService = {
 		log.info('Completed waitlist sync to Loops', {
 			total: entries.length,
 			synced: totalSynced,
+			skipped: totalSkipped,
 			failed: totalFailed,
 			failed_emails: failedEmails.length > 0 ? failedEmails.slice(0, 10) : [] // Log first 10 failed emails
 		})
