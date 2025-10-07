@@ -29,6 +29,7 @@ import type {
 	ProjectWithIdParams,
 	RearrangeSectionsRequest,
 	ReplaceResumeRequest,
+	ResumeMinimal,
 	ResumeResponse,
 	ResumeShort,
 	Skill,
@@ -69,6 +70,19 @@ export const getResume = api(
 	{method: 'GET', path: '/resume/:id', auth: true, expose: true},
 	async ({id}: GetResumeParams): Promise<ResumeResponse> => {
 		return ResumeService.getResumeById({id})
+	}
+)
+
+/**
+ * Get minimal resume data by ID
+ * Fast endpoint that returns only essential resume information
+ * without fetching sections or nested data
+ * GET /resume/:id/minimal
+ */
+export const getResumeMinimal = api(
+	{method: 'GET', path: '/resume/:id/minimal', auth: true, expose: true},
+	async ({id}: GetResumeParams): Promise<ResumeMinimal> => {
+		return ResumeService.getResumeMinimal({id})
 	}
 )
 

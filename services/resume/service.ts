@@ -35,6 +35,7 @@ import {
 	GetResumeParams,
 	ListResumesParams,
 	RearrangeSectionsRequest,
+	ResumeMinimal,
 	ResumeResponse,
 	ResumeSectionWithData,
 	ResumeShort,
@@ -422,6 +423,64 @@ export const ResumeService = {
 			user,
 			job: jobData,
 			sections: sectionsWithData
+		}
+	},
+
+	/**
+	 * Get minimal resume data by ID
+	 * Fast endpoint that returns only essential resume information
+	 * without fetching sections or full user/job data
+	 */
+	async getResumeMinimal({id}: GetResumeParams): Promise<ResumeMinimal> {
+		const resumeId = await this.resolveResumeId(id)
+		await this.verifyResumeOwnership(resumeId)
+
+		// Fetch resume with optional job title in a single optimized query
+		const resumeQuery = await db
+			.select({
+				id: resumes.id,
+				base: resumes.base,
+				status: resumes.status,
+				job_id: resumes.job_id,
+				created_at: resumes.created_at,
+				updated_at: resumes.updated_at
+			})
+			.from(resumes)
+			.where(eq(resumes.id, resumeId))
+			.limit(1)
+
+		if (resumeQuery.length === 0) {
+			throw APIError.notFound(`Resume with ID '${resumeId}' not found`)
+		}
+
+		const resume = resumeQuery[0]
+
+		// Fetch job title and company name if job_id exists (minimal fetch, very fast)
+		let jobTitle: string | null = null
+		let companyName: string | null = null
+		if (resume.job_id) {
+			try {
+				const jobData = await job.getJob({id: resume.job_id})
+				jobTitle = jobData.job?.title ?? null
+				companyName = jobData.job?.company_name ?? null
+			} catch (err) {
+				// Job not found or error, leave as null
+				log.warn('Failed to fetch job data for minimal resume', {
+					resume_id: resumeId,
+					job_id: resume.job_id,
+					error: err instanceof Error ? err.message : 'Unknown error'
+				})
+			}
+		}
+
+		return {
+			id: resume.id,
+			base: resume.base,
+			status: resume.status,
+			job_title: jobTitle,
+			company_name: companyName,
+			created_at: resume.created_at,
+			updated_at: resume.updated_at
 		}
 	},
 

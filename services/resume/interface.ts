@@ -742,3 +742,30 @@ export interface ExportResumeResponse {
 	/** URL to the exported LaTeX file */
 	latex_url: string
 }
+
+/**
+ * ==========================================
+ * MINIMAL RESUME INTERFACES
+ * ==========================================
+ */
+
+/**
+ * Resume Minimal Response
+ * Lightweight resume data for quick lookups
+ */
+export interface ResumeMinimal {
+	/** Resume ID */
+	id: string
+	/** Whether this is a base/template resume */
+	base: boolean
+	/** Resume status */
+	status: ResumeStatus | null
+	/** Job title from linked job (null if no job linked) */
+	job_title: string | null
+	/** Company name from linked job (null if no job linked) */
+	company_name: string | null
+	/** Resume created timestamp */
+	created_at: Date
+	/** Resume last updated timestamp */
+	updated_at: Date
+}
