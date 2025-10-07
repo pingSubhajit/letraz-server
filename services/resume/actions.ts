@@ -273,93 +273,98 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 			 * TODO: Replace with actual AI-powered tailoring logic
 			 * For now, create dummy tailored resume sections
 			 */
-			const dummySections = [
-				{
-					type: ResumeSectionType.Experience,
-					data: {
-						company_name: 'Tech Company Inc.',
-						job_title: 'Senior Software Engineer',
-						employment_type: 'flt',
-						city: 'San Francisco',
-						country_code: 'USA',
-						started_from_month: 1,
-						started_from_year: 2020,
-						finished_at_month: null,
-						finished_at_year: null,
-						current: true,
-						description:
-							'Led development of microservices architecture. Implemented CI/CD pipelines. Mentored junior developers.'
-					}
-				},
-				{
-					type: ResumeSectionType.Education,
-					data: {
-						institution_name: 'State University',
-						field_of_study: 'Computer Science',
-						degree: 'Bachelor of Science',
-						country_code: 'USA',
-						started_from_month: 9,
-						started_from_year: 2015,
-						finished_at_month: 5,
-						finished_at_year: 2019,
-						current: false,
-						description: 'Focus on software engineering and distributed systems.'
-					}
-				},
-				{
-					type: ResumeSectionType.Skill,
-					data: {
-						skills: [
-							{name: 'TypeScript', category: 'Programming Language', level: 'EXP'},
-							{name: 'React', category: 'Framework', level: 'ADV'},
-							{name: 'Node.js', category: 'Runtime', level: 'EXP'}
-						]
-					}
-				}
-			]
 
-			// Replace resume sections with dummy tailored content
-			await BulkReplaceService.replaceResumeInternal(event.user_id, event.resume_id, dummySections)
+			// Artificial delay
 
-			// Update resume status to success
-			await db
-				.update(resumes)
-				.set({
-					status: ResumeStatus.Success
+			setTimeout(async () => {
+				const dummySections = [
+					{
+						type: ResumeSectionType.Experience,
+						data: {
+							company_name: 'Tech Company Inc.',
+							job_title: 'Senior Software Engineer',
+							employment_type: 'flt',
+							city: 'San Francisco',
+							country_code: 'USA',
+							started_from_month: 1,
+							started_from_year: 2020,
+							finished_at_month: null,
+							finished_at_year: null,
+							current: true,
+							description:
+								'Led development of microservices architecture. Implemented CI/CD pipelines. Mentored junior developers.'
+						}
+					},
+					{
+						type: ResumeSectionType.Education,
+						data: {
+							institution_name: 'State University',
+							field_of_study: 'Computer Science',
+							degree: 'Bachelor of Science',
+							country_code: 'USA',
+							started_from_month: 9,
+							started_from_year: 2015,
+							finished_at_month: 5,
+							finished_at_year: 2019,
+							current: false,
+							description: 'Focus on software engineering and distributed systems.'
+						}
+					},
+					{
+						type: ResumeSectionType.Skill,
+						data: {
+							skills: [
+								{name: 'TypeScript', category: 'Programming Language', level: 'EXP'},
+								{name: 'React', category: 'Framework', level: 'ADV'},
+								{name: 'Node.js', category: 'Runtime', level: 'EXP'}
+							]
+						}
+					}
+				]
+
+				// Replace resume sections with dummy tailored content
+				await BulkReplaceService.replaceResumeInternal(event.user_id, event.resume_id, dummySections)
+
+				// Update resume status to success
+				await db
+					.update(resumes)
+					.set({
+						status: ResumeStatus.Success
+					})
+					.where(eq(resumes.id, event.resume_id))
+
+				// Update resume process status to success
+				await db
+					.update(resumeProcesses)
+					.set({
+						status: ProcessStatus.Success,
+						status_details: 'Resume tailored successfully (dummy data)'
+					})
+					.where(eq(resumeProcesses.id, event.process_id))
+
+				// Publish resume tailoring success event
+				await resumeTailoringSuccess.publish({
+					resume_id: event.resume_id,
+					job_id: event.job_id,
+					process_id: event.process_id,
+					user_id: event.user_id,
+					completed_at: new Date()
 				})
-				.where(eq(resumes.id, event.resume_id))
 
-			// Update resume process status to success
-			await db
-				.update(resumeProcesses)
-				.set({
-					status: ProcessStatus.Success,
-					status_details: 'Resume tailored successfully (dummy data)'
+				// Publish resume updated event for search indexing
+				await ResumeService.publishResumeUpdate({
+					resumeId: event.resume_id,
+					changeType: 'bulk_replace',
+					userId: event.user_id
 				})
-				.where(eq(resumeProcesses.id, event.process_id))
 
-			// Publish resume tailoring success event
-			await resumeTailoringSuccess.publish({
-				resume_id: event.resume_id,
-				job_id: event.job_id,
-				process_id: event.process_id,
-				user_id: event.user_id,
-				completed_at: new Date()
-			})
-
-			// Publish resume updated event for search indexing
-			await ResumeService.publishResumeUpdate({
-				resumeId: event.resume_id,
-				changeType: 'bulk_replace',
-				userId: event.user_id
-			})
-
-			log.info('Resume tailoring completed successfully', {
-				resume_id: event.resume_id,
-				job_id: event.job_id,
-				process_id: event.process_id,
-				user_id: event.user_id
-			})
+				log.info('Resume tailoring completed successfully', {
+					resume_id: event.resume_id,
+					job_id: event.job_id,
+					process_id: event.process_id,
+					user_id: event.user_id
+				})
+			}, 10000)
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error'
 
