@@ -36,7 +36,7 @@ export const AnalyticsService = {
 			 * Use email as distinct_id (PostHog identifies users by email)
 			 */
 			const eventExists = await checkEventExists({
-				distinctId: resumeData.user.email,
+				distinctId: resumeData.user.id,
 				eventName: 'resume_opened',
 				propertyFilters: {
 					resume_id: params.id,
