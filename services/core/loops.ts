@@ -30,7 +30,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 /**
  * Make a rate-limited request to Loops API with exponential backoff
- * 
+ *
  * @param url - API endpoint URL
  * @param options - Fetch options
  * @param maxRetries - Maximum number of retries (default: 5)
@@ -101,7 +101,7 @@ const rateLimitedFetch = async (
 
 /**
  * Find a contact in Loops by email with rate limiting
- * 
+ *
  * @param email - Email address to search for
  * @returns Contact object or null if not found
  */
@@ -167,7 +167,7 @@ export const findLoopsContact = async (email: string): Promise<LoopsFindContactR
 /**
  * Check if a contact needs to be synced to Loops
  * Compares the local contact data with what exists in Loops
- * 
+ *
  * @param contact - Local contact to check
  * @param existingContact - Existing contact in Loops (if any)
  * @returns true if sync is needed, false otherwise

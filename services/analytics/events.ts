@@ -25,5 +25,3 @@ export type AnalyticsEvents =
 
 export type AnalyticsEventName = AnalyticsEvents['name']
 export type AnalyticsEventProps<T extends AnalyticsEventName> = Extract<AnalyticsEvents, {name: T}>['properties']
-
-
