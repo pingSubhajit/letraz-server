@@ -4,49 +4,49 @@ import {jobScrapeFailed, jobScrapeSuccess, jobScrapeTriggered} from '@/services/
 import {db} from '@/services/job/database'
 import {jobs, JobStatus, processes, ProcessStatus} from '@/services/job/schema'
 import {eq} from 'drizzle-orm'
+import {JobExtractor} from './services/job-extractor'
 
 const jobScrapeTriggeredEventListener = new Subscription(jobScrapeTriggered, 'extract-job-details', {
 	handler: async (event) => {
-		try {
-			/*
-			 * TODO: Implement actual job extraction logic
-			 * For now, populate with dummy data
-			 */
+		const jobExtractor = new JobExtractor()
 
-			// Dummy job data
-			const dummyJobData = {
-				title: 'Senior Software Engineer',
-				company_name: 'Tech Corp Inc.',
-				location: 'San Francisco, CA',
-				currency: 'USD',
-				salary_min: 120000,
-				salary_max: 180000,
-				requirements: [
-					'5+ years of experience in software development',
-					'Strong knowledge of TypeScript and Node.js',
-					'Experience with cloud platforms (AWS, GCP, or Azure)',
-					'Excellent problem-solving skills'
-				],
-				description: 'We are looking for a talented Senior Software Engineer to join our growing team. You will be responsible for designing and implementing scalable backend systems.',
-				responsibilities: [
-					'Design and develop scalable backend services',
-					'Collaborate with cross-functional teams',
-					'Mentor junior developers',
-					'Participate in code reviews'
-				],
-				benefits: [
-					'Competitive salary and equity',
-					'Health, dental, and vision insurance',
-					'401(k) matching',
-					'Flexible work hours and remote work options'
-				],
+		try {
+			log.info('Starting job extraction', {
+				job_id: event.job_id,
+				process_id: event.process_id,
+				job_url: event.job_url
+			})
+
+			// Validate job URL exists
+			if (!event.job_url) {
+				throw new Error('No job URL provided in event')
+			}
+
+			// Extract job data using the new simplified flow
+			const extractedJobData = await jobExtractor.extractJob(event.job_url, {
+				timeout: 60000, // 60 seconds timeout
+				retries: 2
+			})
+
+			// Prepare job data for database update
+			const jobData = {
+				title: extractedJobData.title,
+				company_name: extractedJobData.company_name,
+				location: extractedJobData.location || null,
+				currency: extractedJobData.currency || null,
+				salary_min: extractedJobData.salary_min || null,
+				salary_max: extractedJobData.salary_max || null,
+				requirements: extractedJobData.requirements || [],
+				description: extractedJobData.description || null,
+				responsibilities: extractedJobData.responsibilities || [],
+				benefits: extractedJobData.benefits || [],
 				status: JobStatus.Success
 			}
 
 			// Update job with extracted data
 			await db
 				.update(jobs)
-				.set(dummyJobData)
+				.set(jobData)
 				.where(eq(jobs.id, event.job_id))
 
 			// Update process status to Success
