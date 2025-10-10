@@ -23,6 +23,8 @@ import puppeteer from 'puppeteer'
 import puppeteerCore from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 import {addBreadcrumb, captureException} from '@/services/utils/sentry'
+import {ResumeTailoringService} from '@/services/resume/services/resume-tailoring.service'
+import {job as jobService} from '~encore/clients'
 
 // Secrets for resume preview URL and authentication
 const ResumePreviewUrl = secret('ResumePreviewUrl')
@@ -257,7 +259,7 @@ const jobScrapeFailedListener = new Subscription(jobScrapeFailed, 'mark-resumes-
 
 /**
  * Resume Tailoring Triggered Event Listener
- * Processes resume tailoring requests by generating dummy tailored content
+ * Processes resume tailoring requests using AI-powered parallel section generation
  */
 const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTriggered, 'process-resume-tailoring', {
 	handler: async (event) => {
@@ -269,102 +271,92 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 				user_id: event.user_id
 			})
 
-			/*
-			 * TODO: Replace with actual AI-powered tailoring logic
-			 * For now, create dummy tailored resume sections
-			 */
+			// Fetch base resume with all sections
+			// We can't use 'base' alias here because we're in a background handler without auth context
+			// So we query the base resume directly using the user_id from the event
+			const [baseResumeRecord] = await db
+				.select()
+				.from(resumes)
+				.where(and(eq(resumes.user_id, event.user_id), eq(resumes.base, true)))
+				.limit(1)
 
-			// Artificial delay
+			if (!baseResumeRecord) {
+				throw new Error('Base resume not found for user')
+			}
 
-			setTimeout(async () => {
-				const dummySections = [
-					{
-						type: ResumeSectionType.Experience,
-						data: {
-							company_name: 'Tech Company Inc.',
-							job_title: 'Senior Software Engineer',
-							employment_type: 'flt',
-							city: 'San Francisco',
-							country_code: 'USA',
-							started_from_month: 1,
-							started_from_year: 2020,
-							finished_at_month: null,
-							finished_at_year: null,
-							current: true,
-							description:
-								'Led development of microservices architecture. Implemented CI/CD pipelines. Mentored junior developers.'
-						}
-					},
-					{
-						type: ResumeSectionType.Education,
-						data: {
-							institution_name: 'State University',
-							field_of_study: 'Computer Science',
-							degree: 'Bachelor of Science',
-							country_code: 'USA',
-							started_from_month: 9,
-							started_from_year: 2015,
-							finished_at_month: 5,
-							finished_at_year: 2019,
-							current: false,
-							description: 'Focus on software engineering and distributed systems.'
-						}
-					},
-					{
-						type: ResumeSectionType.Skill,
-						data: {
-							skills: [
-								{name: 'TypeScript', category: 'Programming Language', level: 'EXP'},
-								{name: 'React', category: 'Framework', level: 'ADV'},
-								{name: 'Node.js', category: 'Runtime', level: 'EXP'}
-							]
-						}
-					}
-				]
+			// Now get the full resume with sections using the actual resume ID
+			const baseResume = await ResumeService.getResumeById({id: baseResumeRecord.id}, {skipAuth: true})
+			if (!baseResume) {
+				throw new Error('Failed to load base resume')
+			}
 
-				// Replace resume sections with dummy tailored content
-				await BulkReplaceService.replaceResumeInternal(event.user_id, event.resume_id, dummySections)
+			// Fetch job details
+			const jobResponse = await jobService.getJob({id: event.job_id})
+			if (!jobResponse || !jobResponse.job) {
+				throw new Error('Job not found')
+			}
 
-				// Update resume status to success
-				await db
-					.update(resumes)
-					.set({
-						status: ResumeStatus.Success
-					})
-					.where(eq(resumes.id, event.resume_id))
+			const job = jobResponse.job
 
-				// Update resume process status to success
-				await db
-					.update(resumeProcesses)
-					.set({
-						status: ProcessStatus.Success,
-						status_details: 'Resume tailored successfully (dummy data)'
-					})
-					.where(eq(resumeProcesses.id, event.process_id))
+			log.info('Starting AI-powered resume tailoring with parallel section generation', {
+				resume_id: event.resume_id,
+				job_id: event.job_id,
+				base_sections_count: baseResume.sections.length,
+				job_title: job.title,
+				company: job.company_name
+			})
 
-				// Publish resume tailoring success event
-				await resumeTailoringSuccess.publish({
-					resume_id: event.resume_id,
-					job_id: event.job_id,
-					process_id: event.process_id,
-					user_id: event.user_id,
-					completed_at: new Date()
-				})
+			// Generate tailored sections using AI with parallel processing
+			const tailoredSections = await ResumeTailoringService.tailorResume(baseResume, job)
 
-				// Publish resume updated event for search indexing
-				await ResumeService.publishResumeUpdate({
-					resumeId: event.resume_id,
-					changeType: 'bulk_replace',
-					userId: event.user_id
-				})
+			log.info('AI tailoring completed, replacing resume sections', {
+				resume_id: event.resume_id,
+				tailored_sections_count: tailoredSections.length
+			})
 
-				log.info('Resume tailoring completed successfully', {
-					resume_id: event.resume_id,
-					job_id: event.job_id,
-					process_id: event.process_id,
-					user_id: event.user_id
-				})
-			}, 10000)
+			// Replace resume sections with AI-tailored content
+			await BulkReplaceService.replaceResumeInternal(event.user_id, event.resume_id, tailoredSections)
+
+			// Update resume status to success	
+			await db
+			.update(resumes)
+			.set({
+				status: ResumeStatus.Success
+			})
+			.where(eq(resumes.id, event.resume_id))
+
+			// Update resume process status to success
+			await db
+			.update(resumeProcesses)
+			.set({
+				status: ProcessStatus.Success,
+				status_details: 'Resume tailored successfully using AI-powered parallel generation'
+			})
+			.where(eq(resumeProcesses.id, event.process_id))
+
+			// Publish resume tailoring success event
+			await resumeTailoringSuccess.publish({
+				resume_id: event.resume_id,
+				job_id: event.job_id,
+				process_id: event.process_id,
+				user_id: event.user_id,
+				completed_at: new Date()
+			})
+
+			// Publish resume updated event for search indexing
+			await ResumeService.publishResumeUpdate({
+				resumeId: event.resume_id,
+				changeType: 'bulk_replace',
+				userId: event.user_id
+			})
+
+			log.info('Resume tailoring completed successfully', {
+				resume_id: event.resume_id,
+				job_id: event.job_id,
+				process_id: event.process_id,
+				user_id: event.user_id
+			})
+
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error'
 
