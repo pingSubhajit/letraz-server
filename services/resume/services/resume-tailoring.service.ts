@@ -30,8 +30,8 @@ const ExperienceSchema = z.object({
 	company_name: z.string().describe('Company name'),
 	job_title: z.string().describe('Job title/position'),
 	employment_type: z
-		.enum(['flt', 'prt', 'cnt', 'int', 'frl', 'slf', 'vol', 'trn'])
-		.describe('Employment type: flt=Full Time, prt=Part Time, cnt=Contract, etc.'),
+		.enum(['flt', 'prt', 'con', 'int', 'fre', 'sel', 'vol', 'tra'])
+		.describe('Employment type: flt=Full Time, prt=Part Time, con=Contract, int=Internship, fre=Freelance, sel=Self-Employed, vol=Volunteer, tra=Trainee'),
 	city: z.string().nullable().describe('City location'),
 	country_code: z.string().nullable().describe('Country code (e.g., USA, IND)'),
 	started_from_month: z.number().min(1).max(12).nullable(),
@@ -68,9 +68,9 @@ const SkillSchema = z.object({
 	name: z.string().describe('Skill name'),
 	category: z.string().nullable().describe('Skill category (e.g., Programming, Tools, Languages)'),
 	level: z
-		.enum(['bgn', 'int', 'adv', 'exp'])
+		.enum(['BEG', 'INT', 'ADV', 'EXP'])
 		.nullable()
-		.describe('Proficiency level: bgn=Beginner, int=Intermediate, adv=Advanced, exp=Expert')
+		.describe('Proficiency level: BEG=Beginner, INT=Intermediate, ADV=Advanced, EXP=Expert')
 })
 
 // Project Schema

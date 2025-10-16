@@ -4,10 +4,13 @@ import log from 'encore.dev/log'
 import {secret} from 'encore.dev/config'
 import {isLinkedInURL, isLinkedInJobURL, convertToPublicLinkedInJobURL} from '../utils/url-detection'
 import {LLMJobParser} from './llm-parser'
+import {createAnthropic} from '@ai-sdk/anthropic'
+import {generateObject} from 'ai'
 
 const firecrawlApiKey = secret('FirecrawlApiKey')
 const brightDataApiKey = secret('BrightdataApiKey')
 const brightDataDatasetId = secret('BrightdataDatasetId')
+const claudeApiKey = secret('ClaudeApiKey')
 
 /*
  * Feature flag: Toggle between Firecrawl structured extraction vs markdown+LLM
@@ -140,15 +143,18 @@ export class JobExtractor {
 			// Convert to public LinkedIn job URL format
 			const publicUrl = convertToPublicLinkedInJobURL(url)
 
-			log.info('Extracting LinkedIn job via BrightData', {
+			log.info('Extracting LinkedIn job via BrightData synchronous API', {
 				originalUrl: url,
 				publicUrl
 			})
 
-			// Call BrightData API
+			// Call BrightData API (synchronous /scrape endpoint - returns data immediately)
 			const jobData = await this.callBrightDataAPI(publicUrl, options)
 
-			log.info('BrightData API response', {jobData})
+			log.info('BrightData job data received', {
+				hasJobData: !!jobData,
+				jobDataKeys: Object.keys(jobData || {})
+			})
 
 			// Use LLM to parse BrightData response (LinkedIn data needs AI parsing)
 			return await this.parseBrightDataResponseWithLLM(jobData, publicUrl)
@@ -294,14 +300,17 @@ export class JobExtractor {
 
 	/**
 	 * Call BrightData API for LinkedIn job scraping
+	 * Uses synchronous /scrape endpoint that waits up to 60s for results
+	 * Returns data immediately when ready (no polling delay)
 	 */
 	private async callBrightDataAPI(url: string, options: JobExtractionOptions): Promise<any> {
 		const datasetId = brightDataDatasetId()
 		const apiKey = brightDataApiKey()
-		// Correct BrightData API format: dataset_id is a query parameter
-		const brightDataUrl = `https://api.brightdata.com/datasets/v3/trigger?dataset_id=${datasetId}&format=json`
 
-		log.info('Making BrightData API call', {
+		// Use synchronous /scrape endpoint - returns data immediately when ready (up to 60s)
+		const brightDataUrl = `https://api.brightdata.com/datasets/v3/scrape?dataset_id=${datasetId}&format=json`
+
+		log.info('Making BrightData synchronous API call', {
 			url: brightDataUrl,
 			targetUrl: url,
 			hasApiKey: !!apiKey,
@@ -325,7 +334,9 @@ export class JobExtractor {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify(requestBody),
-				signal: AbortSignal.timeout(options.timeout || 60000)
+				// Synchronous endpoint has 60s timeout on BrightData's side
+				// Set our timeout to 70s to account for network latency
+				signal: AbortSignal.timeout(70000)
 			})
 
 			if (!response.ok) {
@@ -339,27 +350,31 @@ export class JobExtractor {
 			}
 
 			const data = await response.json() as any
-			log.info('BrightData API response received', {
-				dataKeys: Object.keys(data || {}),
+			log.info('BrightData synchronous response received', {
 				dataType: typeof data,
-				hasSnapshotId: !!data.snapshot_id
+				isArray: Array.isArray(data),
+				arrayLength: Array.isArray(data) ? data.length : null,
+				dataKeys: Array.isArray(data) ? 'array' : Object.keys(data || {})
 			})
 
-			// BrightData /trigger returns a snapshot_id, we need to poll for the actual data
-			if (data.snapshot_id) {
-				log.info('BrightData scrape triggered, polling for results', {
-					snapshotId: data.snapshot_id
+			// Synchronous endpoint returns data directly as an array
+			// Extract the first item from the array
+			if (Array.isArray(data) && data.length > 0) {
+				log.info('Extracting first item from BrightData array response', {
+					itemKeys: Object.keys(data[0] || {})
 				})
-				return await this.pollBrightDataSnapshot(data.snapshot_id)
+				return data[0]
 			}
 
+			// If not an array, return as-is (might be error object or single item)
 			return data
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-			log.error(error as Error, 'BrightData API call failed', {
+			log.error(error as Error, 'BrightData synchronous API call failed', {
 				url: brightDataUrl,
 				targetUrl: url,
-				errorMessage
+				errorMessage,
+				isTimeout: errorMessage.includes('timeout') || errorMessage.includes('aborted')
 			})
 			throw error
 		}
@@ -552,14 +567,98 @@ export class JobExtractor {
 	private async parseBrightDataResponseWithLLM(data: any, url: string): Promise<JobExtractionResult> {
 		log.info('Parsing BrightData response with LLM', {
 			dataKeys: Object.keys(data || {}),
-			url
+			url,
+			hasJobTitle: !!data.job_title,
+			hasCompanyName: !!data.company_name,
+			hasJobDescription: !!data.job_description_formatted || !!data.job_description
 		})
 
-		// Convert BrightData response to text content for LLM processing
-		const textContent = this.convertBrightDataToText(data)
+		// BrightData already provides structured data - use it directly instead of asking Claude to re-extract it!
+		// Only use Claude to parse the job description for requirements, responsibilities, and benefits
 
-		// Use LLM to parse the LinkedIn data (HTML content from BrightData)
+		const jobDescription = data.job_description_formatted || data.job_description || data.job_summary || ''
+
+		// If we have structured data from BrightData, use it directly
+		if (data.job_title && data.company_name) {
+			log.info('Using BrightData structured data directly', {
+				title: data.job_title,
+				company: data.company_name,
+				location: data.job_location,
+				descriptionLength: jobDescription.length
+			})
+
+			// Parse job description with Claude to extract requirements, responsibilities, benefits
+			const descriptionData = await this.parseJobDescriptionWithLLM(jobDescription, url)
+
+			// Combine BrightData structured fields with Claude-extracted details
+			return {
+				title: data.job_title,
+				company_name: data.company_name,
+				location: data.job_location || undefined,
+				currency: data.base_salary?.currency || undefined,
+				salary_min: data.base_salary?.min || undefined,
+				salary_max: data.base_salary?.max || undefined,
+				description: descriptionData.description,
+				requirements: descriptionData.requirements,
+				responsibilities: descriptionData.responsibilities,
+				benefits: descriptionData.benefits
+			}
+		}
+
+		// Fallback: if BrightData doesn't have structured fields, convert everything to text and let Claude parse it
+		log.warn('BrightData missing structured fields - falling back to full LLM parsing', {url})
+		const textContent = this.convertBrightDataToText(data)
 		return await this.llmParser.parseJobContent(textContent, url, 'html')
+	}
+
+	/**
+	 * Parse job description HTML to extract requirements, responsibilities, and benefits using Claude
+	 * This is more efficient than asking Claude to re-extract data we already have from BrightData
+	 */
+	private async parseJobDescriptionWithLLM(description: string, url: string): Promise<{
+		description?: string
+		requirements?: string[]
+		responsibilities?: string[]
+		benefits?: string[]
+	}> {
+		// Create a simpler schema just for description parsing
+		const DescriptionSchema = z.object({
+			description: z.string().optional(),
+			requirements: z.array(z.string()).optional().nullable(),
+			responsibilities: z.array(z.string()).optional().nullable(),
+			benefits: z.array(z.string()).optional().nullable()
+		})
+
+		const prompt = `Analyze the job description below and extract:
+1. A concise 2-3 sentence summary for the "description" field
+2. An array of specific "requirements" (skills, qualifications, experience needed)
+3. An array of "responsibilities" (what the person will do in this role)
+4. An array of "benefits" (perks, compensation details beyond base salary, culture)
+
+Job Description:
+${description}`
+
+		try {
+			const anthropic = createAnthropic({ apiKey: claudeApiKey() })
+			const result = await generateObject({
+				model: anthropic('claude-sonnet-4-0'),
+				schema: DescriptionSchema,
+				prompt,
+				temperature: 0.1
+			})
+
+			return {
+				description: result.object.description,
+				requirements: result.object.requirements || undefined,
+				responsibilities: result.object.responsibilities || undefined,
+				benefits: result.object.benefits || undefined
+			}
+		} catch (error) {
+			log.error(error as Error, 'Failed to parse job description with LLM', {url})
+			return {
+				description: description.substring(0, 500) // Fallback: use truncated description
+			}
+		}
 	}
 
 	/**

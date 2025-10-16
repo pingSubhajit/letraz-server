@@ -17,18 +17,18 @@ const getAnthropicProvider = () => {
 const JobExtractionSchema = z.object({
 	is_job_posting: z.boolean(),
 	confidence: z.number().min(0).max(1).optional(),
-	title: z.string(),
-	company_name: z.string(),
+	title: z.string().default(''),
+	company_name: z.string().default(''),
 	location: z.string().optional(),
 	salary: z.object({
 		currency: z.string().optional(),
 		max: z.number().optional(),
 		min: z.number().optional()
-	}).optional(),
-	requirements: z.array(z.string()).optional(),
+	}).optional().nullable(),
+	requirements: z.array(z.string()).optional().nullable(),
 	description: z.string().optional(),
-	responsibilities: z.array(z.string()).optional(),
-	benefits: z.array(z.string()).optional(),
+	responsibilities: z.array(z.string()).optional().nullable(),
+	benefits: z.array(z.string()).optional().nullable(),
 	reason: z.string().optional()
 })
 
@@ -98,12 +98,22 @@ export class LLMJobParser {
 			const anthropic = getAnthropicProvider()
 
 			// Call Claude using Vercel AI SDK with structured output
-			const result = await generateObject({
-				model: anthropic('claude-sonnet-4-0'),
-				schema: JobExtractionSchema,
-				prompt,
-				temperature: 0.1 // Low temperature for consistent extraction
-			})
+			let result
+			try {
+				result = await generateObject({
+					model: anthropic('claude-sonnet-4-0'),
+					schema: JobExtractionSchema,
+					prompt,
+					temperature: 0.1 // Low temperature for consistent extraction
+				})
+			} catch (schemaError) {
+				log.error(schemaError as Error, 'Schema validation failed - Claude response did not match expected schema', {
+					url,
+					contentType,
+					errorMessage: schemaError instanceof Error ? schemaError.message : 'Unknown error'
+				})
+				throw schemaError
+			}
 
 			const extractedData = result.object
 
