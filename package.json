@@ -21,7 +21,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^2.0.23",
+    "@ai-sdk/anthropic": "^2.0.31",
     "@ai-sdk/google": "^2.0.18",
     "@ai-sdk/openai": "^2.0.46",
     "@knocklabs/node": "^1.18.0",

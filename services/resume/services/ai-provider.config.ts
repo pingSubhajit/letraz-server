@@ -9,6 +9,12 @@ import {createAnthropic} from '@ai-sdk/anthropic'
 import {createOpenAI} from '@ai-sdk/openai'
 import {createGoogleGenerativeAI} from '@ai-sdk/google'
 import {secret} from 'encore.dev/config'
+import {createGateway} from 'ai'
+
+const aiGatewayKey = secret('AiGatewayKey')
+const gateway = createGateway({
+	apiKey: aiGatewayKey(),
+})
 
 // Secrets for each provider
 const anthropicApiKey = secret('ClaudeApiKey')
@@ -25,19 +31,19 @@ export type AIProvider = 'anthropic' | 'openai' | 'google'
  */
 export const AI_MODELS = {
 	anthropic: {
-		default: 'claude-3-5-sonnet-20241022',
-		fast: 'claude-3-5-sonnet-20241022', // Same model, fast enough
-		powerful: 'claude-3-5-sonnet-20241022'
+		default: gateway('anthropic/claude-haiku-4.5'),
+		fast: gateway('anthropic/claude-sonnet-4.5'), 
+		powerful: gateway('anthropic/claude-sonnet-4.5')
 	},
 	openai: {
-		default: 'gpt-4o',
-		fast: 'gpt-4o-mini',
-		powerful: 'gpt-4-turbo'
+		default: gateway('openai/gpt-5-mini'),
+		fast: gateway('openai/gpt-5-mini'),
+		powerful: gateway('openai/gpt-5')
 	},
 	google: {
-		default: 'gemini-1.5-pro',
-		fast: 'gemini-2.0-flash-exp',
-		powerful: 'gemini-1.5-pro'
+		default: gateway('google/gemini-1.5-pro'),
+		fast: gateway('google/gemini-2.0-flash-exp'),
+		powerful: gateway('google/gemini-1.5-pro')
 	}
 } as const
 
@@ -105,10 +111,8 @@ class AIProviderRegistry {
 	getModel(provider?: AIProvider, tier?: 'default' | 'fast' | 'powerful') {
 		const selectedProvider = provider || AI_CONFIG.provider
 		const selectedTier = tier || AI_CONFIG.modelTier
-		const providerInstance = this.getProvider(selectedProvider)
-		const modelId = AI_MODELS[selectedProvider][selectedTier]
-
-		return providerInstance(modelId)
+		const model = AI_MODELS[selectedProvider][selectedTier]
+		return model
 	}
 }
 

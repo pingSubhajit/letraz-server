@@ -1,10 +1,14 @@
 import {createAnthropic} from '@ai-sdk/anthropic'
-import {generateObject} from 'ai'
+import {createGateway, generateObject} from 'ai'
 import {z} from 'zod'
 import log from 'encore.dev/log'
 import {secret} from 'encore.dev/config'
 
 const claudeApiKey = secret('ClaudeApiKey')
+const aiGatewayKey = secret('AiGatewayKey')
+const gateway = createGateway({
+	apiKey: aiGatewayKey(),
+})
 
 // Create Anthropic provider instance with API key
 const getAnthropicProvider = () => {
@@ -101,7 +105,7 @@ export class LLMJobParser {
 			let result
 			try {
 				result = await generateObject({
-					model: anthropic('claude-sonnet-4-0'),
+					model: gateway('anthropic/claude-haiku-4.5'),
 					schema: JobExtractionSchema,
 					prompt,
 					temperature: 0.1 // Low temperature for consistent extraction

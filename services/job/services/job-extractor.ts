@@ -5,12 +5,17 @@ import {secret} from 'encore.dev/config'
 import {isLinkedInURL, isLinkedInJobURL, convertToPublicLinkedInJobURL} from '../utils/url-detection'
 import {LLMJobParser} from './llm-parser'
 import {createAnthropic} from '@ai-sdk/anthropic'
-import {generateObject} from 'ai'
+import {createGateway, generateObject} from 'ai'
 
 const firecrawlApiKey = secret('FirecrawlApiKey')
 const brightDataApiKey = secret('BrightdataApiKey')
 const brightDataDatasetId = secret('BrightdataDatasetId')
 const claudeApiKey = secret('ClaudeApiKey')
+const aiGatewayKey = secret('AiGatewayKey')
+
+const gateway = createGateway({
+	apiKey: aiGatewayKey(),
+})
 
 /*
  * Feature flag: Toggle between Firecrawl structured extraction vs markdown+LLM
@@ -641,7 +646,7 @@ ${description}`
 		try {
 			const anthropic = createAnthropic({ apiKey: claudeApiKey() })
 			const result = await generateObject({
-				model: anthropic('claude-sonnet-4-0'),
+				model: gateway('anthropic/claude-haiku-4.5'),
 				schema: DescriptionSchema,
 				prompt,
 				temperature: 0.1
