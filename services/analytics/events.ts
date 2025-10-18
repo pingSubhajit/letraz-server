@@ -20,6 +20,7 @@ export type AnalyticsEvents =
 	| {name: 'resume_opened', properties: {resume_id: string, base: boolean, status?: string | null}}
 	| {name: 'resume_search', properties: {query_length_bucket: string, results_count_bucket?: string}}
 	| {name: 'resume_deleted', properties: {resume_id: string, base?: boolean, has_exported_before?: boolean}}
+	| {name: 'resume_export_clicked', properties: {resume_id: string, format: 'pdf' | 'tex'}}
 	| {name: 'resume_export_succeeded', properties: {resume_id: string, format: 'pdf' | 'tex'}}
 	| {name: 'resume_export_failed', properties: {resume_id: string, format: 'pdf' | 'tex', error_category?: string}}
 

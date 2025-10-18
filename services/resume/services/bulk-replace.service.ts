@@ -597,10 +597,16 @@ export const BulkReplaceService = {
 
 		const result = await BulkReplaceService.replaceResumeInternal(userId, resumeId, sections)
 
-		// Publish event for thumbnail generation
+		/*
+		 * Publish event for thumbnail generation and analytics
+		 * The 'bulk_replace' change type will be picked up by analytics service for tracking
+		 */
 		await ResumeService.publishResumeUpdate({
 			resumeId,
-			changeType: 'bulk_replace'
+			changeType: 'bulk_replace',
+			metadata: {
+				sections_count: sections.length
+			}
 		})
 
 		return result

@@ -1,4 +1,4 @@
-import {IsURL, MinLen} from 'encore.dev/validate'
+import {MinLen} from 'encore.dev/validate'
 
 /**
  * User Interface
@@ -84,7 +84,7 @@ export interface UpdateProfileRequest {
 	city?: string | null
 	postal?: string | null
 	country_id?: number | null
-	website?: (string & IsURL) | null
+	website?: string | null
 	profile_text?: string | null
 }
 

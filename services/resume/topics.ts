@@ -122,3 +122,37 @@ export const thumbnailGenerationTriggered = new Topic<ThumbnailGenerationTrigger
 	}
 )
 
+/**
+ * Resume Export Success Event
+ * Published when resume export completes successfully
+ */
+export interface ResumeExportSuccessEvent {
+	resume_id: string
+	user_id: string
+	exported_at: Date
+}
+
+/**
+ * Resume Export Success Topic
+ */
+export const resumeExportSuccess = new Topic<ResumeExportSuccessEvent>('resume-export-success', {
+	deliveryGuarantee: 'at-least-once'
+})
+
+/**
+ * Resume Export Failed Event
+ * Published when resume export fails
+ */
+export interface ResumeExportFailedEvent {
+	resume_id: string
+	user_id: string
+	error_message: string
+	failed_at: Date
+}
+
+/**
+ * Resume Export Failed Topic
+ */
+export const resumeExportFailed = new Topic<ResumeExportFailedEvent>('resume-export-failed', {
+	deliveryGuarantee: 'at-least-once'
+})

@@ -22,11 +22,13 @@
   },
   "dependencies": {
     "@knocklabs/node": "^1.18.0",
+    "@mendable/firecrawl-js": "^4.3.7",
     "@sentry/node": "^10.16.0",
     "@sparticuz/chromium": "^140.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.15.5",
     "@typescript-eslint/parser": "^8.44.1",
+    "ai": "^5.0.60",
     "algoliasearch": "^5.39.0",
     "drizzle-orm": "^0.44.5",
     "encore.dev": "^1.50.4",
@@ -37,6 +39,7 @@
     "posthog-node": "^5.9.1",
     "puppeteer": "^24.23.0",
     "puppeteer-core": "^24.23.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zod": "^4.1.12"
   }
 }
