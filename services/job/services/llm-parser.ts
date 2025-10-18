@@ -1,4 +1,3 @@
-import {createAnthropic} from '@ai-sdk/anthropic'
 import {createGateway, generateObject} from 'ai'
 import {z} from 'zod'
 import log from 'encore.dev/log'
@@ -7,15 +6,8 @@ import {secret} from 'encore.dev/config'
 const claudeApiKey = secret('ClaudeApiKey')
 const aiGatewayKey = secret('AiGatewayKey')
 const gateway = createGateway({
-	apiKey: aiGatewayKey(),
+	apiKey: aiGatewayKey()
 })
-
-// Create Anthropic provider instance with API key
-const getAnthropicProvider = () => {
-	return createAnthropic({
-		apiKey: claudeApiKey()
-	})
-}
 
 // Zod schema for job extraction - unified schema for both Firecrawl markdown and BrightData HTML
 const JobExtractionSchema = z.object({
@@ -97,9 +89,6 @@ export class LLMJobParser {
 
 			// Create the structured prompt
 			const prompt = this.createJobExtractionPrompt(truncatedContent, url, contentType)
-
-			// Get Anthropic provider and create model instance
-			const anthropic = getAnthropicProvider()
 
 			// Call Claude using Vercel AI SDK with structured output
 			let result
