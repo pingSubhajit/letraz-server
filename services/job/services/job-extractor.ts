@@ -2,9 +2,8 @@ import FirecrawlApp from '@mendable/firecrawl-js'
 import {z} from 'zod'
 import log from 'encore.dev/log'
 import {secret} from 'encore.dev/config'
-import {isLinkedInURL, isLinkedInJobURL, convertToPublicLinkedInJobURL} from '../utils/url-detection'
+import {convertToPublicLinkedInJobURL, isLinkedInJobURL, isLinkedInURL} from '../utils/url-detection'
 import {LLMJobParser} from './llm-parser'
-import {createAnthropic} from '@ai-sdk/anthropic'
 import {createGateway, generateObject} from 'ai'
 
 const firecrawlApiKey = secret('FirecrawlApiKey')
@@ -14,7 +13,7 @@ const claudeApiKey = secret('ClaudeApiKey')
 const aiGatewayKey = secret('AiGatewayKey')
 
 const gateway = createGateway({
-	apiKey: aiGatewayKey(),
+	apiKey: aiGatewayKey()
 })
 
 /*
@@ -339,8 +338,10 @@ export class JobExtractor {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify(requestBody),
-				// Synchronous endpoint has 60s timeout on BrightData's side
-				// Set our timeout to 70s to account for network latency
+				/*
+				 * Synchronous endpoint has 60s timeout on BrightData's side
+				 * Set our timeout to 70s to account for network latency
+				 */
 				signal: AbortSignal.timeout(70000)
 			})
 
@@ -362,8 +363,10 @@ export class JobExtractor {
 				dataKeys: Array.isArray(data) ? 'array' : Object.keys(data || {})
 			})
 
-			// Synchronous endpoint returns data directly as an array
-			// Extract the first item from the array
+			/*
+			 * Synchronous endpoint returns data directly as an array
+			 * Extract the first item from the array
+			 */
 			if (Array.isArray(data) && data.length > 0) {
 				log.info('Extracting first item from BrightData array response', {
 					itemKeys: Object.keys(data[0] || {})
@@ -444,8 +447,10 @@ export class JobExtractor {
 					hasJobData: !!snapshotData.job_posting_id || !!snapshotData.job_title
 				})
 
-				// BrightData returns job data directly without status field when ready
-				// Check if we have actual job data (e.g., job_posting_id or job_title)
+				/*
+				 * BrightData returns job data directly without status field when ready
+				 * Check if we have actual job data (e.g., job_posting_id or job_title)
+				 */
 				if (snapshotData.job_posting_id || snapshotData.job_title) {
 					log.info('BrightData snapshot ready with job data', {
 						snapshotId,
@@ -578,8 +583,10 @@ export class JobExtractor {
 			hasJobDescription: !!data.job_description_formatted || !!data.job_description
 		})
 
-		// BrightData already provides structured data - use it directly instead of asking Claude to re-extract it!
-		// Only use Claude to parse the job description for requirements, responsibilities, and benefits
+		/*
+		 * BrightData already provides structured data - use it directly instead of asking Claude to re-extract it!
+		 * Only use Claude to parse the job description for requirements, responsibilities, and benefits
+		 */
 
 		const jobDescription = data.job_description_formatted || data.job_description || data.job_summary || ''
 
@@ -644,7 +651,6 @@ Job Description:
 ${description}`
 
 		try {
-			const anthropic = createAnthropic({ apiKey: claudeApiKey() })
 			const result = await generateObject({
 				model: gateway('anthropic/claude-haiku-4.5'),
 				schema: DescriptionSchema,
@@ -671,8 +677,10 @@ ${description}`
 	 * BrightData returns raw HTML content from LinkedIn job pages
 	 */
 	private convertBrightDataToText(data: any): string {
-		// BrightData returns job data with various HTML fields
-		// We want to extract the raw HTML content and pass it to Claude for parsing
+		/*
+		 * BrightData returns job data with various HTML fields
+		 * We want to extract the raw HTML content and pass it to Claude for parsing
+		 */
 
 		log.info('Converting BrightData response to HTML', {
 			dataKeys: Object.keys(data || {}),

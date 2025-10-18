@@ -6,7 +6,7 @@ import {userCreated} from '@/services/identity/topics'
 import {jobScrapeFailed, jobScrapeSuccess} from '@/services/job/topics'
 import {userDeleted} from '@/services/webhooks/topics'
 import {db} from '@/services/resume/database'
-import {ProcessStatus, resumeProcesses, resumes, ResumeSectionType, ResumeStatus} from '@/services/resume/schema'
+import {ProcessStatus, resumeProcesses, resumes, ResumeStatus} from '@/services/resume/schema'
 import {
 	resumeTailoringFailed,
 	resumeTailoringSuccess,
@@ -271,9 +271,11 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 				user_id: event.user_id
 			})
 
-			// Fetch base resume with all sections
-			// We can't use 'base' alias here because we're in a background handler without auth context
-			// So we query the base resume directly using the user_id from the event
+			/*
+			 * Fetch base resume with all sections
+			 * We can't use 'base' alias here because we're in a background handler without auth context
+			 * So we query the base resume directly using the user_id from the event
+			 */
 			const [baseResumeRecord] = await db
 				.select()
 				.from(resumes)
@@ -317,22 +319,22 @@ const resumeTailoringTriggeredListener = new Subscription(resumeTailoringTrigger
 			// Replace resume sections with AI-tailored content
 			await BulkReplaceService.replaceResumeInternal(event.user_id, event.resume_id, tailoredSections)
 
-			// Update resume status to success	
+			// Update resume status to success
 			await db
-			.update(resumes)
-			.set({
-				status: ResumeStatus.Success
-			})
-			.where(eq(resumes.id, event.resume_id))
+				.update(resumes)
+				.set({
+					status: ResumeStatus.Success
+				})
+				.where(eq(resumes.id, event.resume_id))
 
 			// Update resume process status to success
 			await db
-			.update(resumeProcesses)
-			.set({
-				status: ProcessStatus.Success,
-				status_details: 'Resume tailored successfully using AI-powered parallel generation'
-			})
-			.where(eq(resumeProcesses.id, event.process_id))
+				.update(resumeProcesses)
+				.set({
+					status: ProcessStatus.Success,
+					status_details: 'Resume tailored successfully using AI-powered parallel generation'
+				})
+				.where(eq(resumeProcesses.id, event.process_id))
 
 			// Publish resume tailoring success event
 			await resumeTailoringSuccess.publish({

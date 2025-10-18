@@ -24,7 +24,7 @@ const users = pgTable('users', {
 	country_id: integer('country_id'), // Foreign key to countries table
 
 	// Additional Profile Information
-	website: varchar('website', {length: 50}),
+	website: varchar('website', {length: 200}),
 	profile_text: text('profile_text'),
 
 	// System Fields

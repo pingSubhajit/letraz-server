@@ -4,6 +4,8 @@ import {getAuthData} from '~encore/auth'
 import {db} from '@/services/resume/database'
 import {
 	ResumeChangeType,
+	resumeExportFailed,
+	resumeExportSuccess,
 	ResumeSectionTypeEvent,
 	resumeTailoringTriggered,
 	resumeUpdated
@@ -77,6 +79,7 @@ export const ResumeService = {
 		sectionType?: ResumeSectionTypeEvent
 		sectionId?: string
 		changedFields?: string[]
+		metadata?: Record<string, unknown> // Additional context
 		userId?: string // Optional: provide when auth context unavailable (e.g., PubSub handlers)
 	}): Promise<void> => {
 		try {
@@ -103,6 +106,7 @@ export const ResumeService = {
 				section_type: params.sectionType,
 				section_id: params.sectionId,
 				changed_fields: params.changedFields,
+				metadata: params.metadata,
 				timestamp: new Date()
 			})
 
@@ -1067,6 +1071,20 @@ export const ResumeService = {
 				latex_url: result.latex_url
 			})
 
+			// Publish resume export success event
+			try {
+				await resumeExportSuccess.publish({
+					resume_id: resumeWithSections.id,
+					user_id: resumeWithSections.user.id,
+					exported_at: new Date()
+				})
+			} catch (error) {
+				log.warn('Failed to publish resume export success event', {
+					resume_id: resumeWithSections.id,
+					error: error instanceof Error ? error.message : String(error)
+				})
+			}
+
 			return {
 				pdf_url: result.pdf_url,
 				latex_url: result.latex_url
@@ -1078,6 +1096,21 @@ export const ResumeService = {
 				user_id: resumeWithSections.user.id,
 				error: errorMessage
 			})
+
+			// Publish resume export failure event
+			try {
+				await resumeExportFailed.publish({
+					resume_id: resumeWithSections.id,
+					user_id: resumeWithSections.user.id,
+					error_message: errorMessage,
+					failed_at: new Date()
+				})
+			} catch (publishError) {
+				log.warn('Failed to publish resume export failure event', {
+					resume_id: resumeWithSections.id,
+					error: publishError instanceof Error ? publishError.message : String(publishError)
+				})
+			}
 
 			// Report export failures to Sentry - this is a critical user-facing feature
 			if (!(error instanceof APIError)) {
