@@ -30,7 +30,7 @@ import {APIError} from 'encore.dev/api'
 import {getPostHogPersonByEmail} from '@/services/analytics/posthog-management'
 import {findLoopsContact, needsSync, upsertLoopsContact, WAITLIST_MAILING_LISTS} from '@/services/core/loops'
 import log from 'encore.dev/log'
-import {getAuthData} from '~encore/internal/auth/auth'
+import {getAuthData} from '~encore/auth'
 
 export const CoreService = {
 	addToWaitlist: async ({email, referrer}: AddToWaitlistParams): Promise<WaitlistResponse> => {
