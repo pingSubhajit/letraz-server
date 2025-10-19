@@ -314,3 +314,22 @@ export interface UserFeedbackSubmittedEvent {
 	/** Timestamp when feedback was submitted */
 	submitted_at: string
 }
+
+/**
+ * General Feedback stored in database
+ * Represents feedback that doesn't require immediate action in Help Scout or Linear
+ */
+export interface GeneralFeedback {
+	/** Unique identifier */
+	id: string
+	/** User ID who submitted the feedback */
+	user_id: string
+	/** Feedback title (AI-generated summary) */
+	title: string
+	/** Feedback content (AI-reformatted) */
+	content: string
+	/** Priority level */
+	priority: 'low' | 'medium' | 'high' | 'urgent'
+	/** Creation timestamp */
+	created_at: Date
+}

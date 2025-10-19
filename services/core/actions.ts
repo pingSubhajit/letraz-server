@@ -7,6 +7,10 @@ import {userFeedbackSubmitted, waitlistLoopsSyncTriggered} from '@/services/core
 import {CoreService} from '@/services/core/service'
 import {addBreadcrumb, captureException} from '@/services/utils/sentry'
 import {AI_MODELS} from '@/services/resume/services/ai-provider.config'
+import {createFreshdeskTicket} from '@/services/core/freshdesk'
+import {createLinearTriageIssue, mapPriorityToLinear} from '@/services/core/linear'
+import {db} from '@/services/core/database'
+import {feedback as feedbackTable} from '@/services/core/schema'
 
 const removeFromWaitlistEventListener = new Subscription(userCreated, 'remove-user-from-waitlist', {
 	handler: async (event) => {
@@ -163,25 +167,103 @@ If the message contains only one feedback item, return an array with one element
 				priorities: feedbackItems.map(item => item.priority)
 			})
 
-			/*
-			 * TODO: Store analyzed feedback in database or forward to support system
-			 * For now, we log the structured result
-			 */
-			feedbackItems.forEach((item, index) => {
-				log.info(`Processed feedback item ${index + 1}/${feedbackItems.length}`, {
-					user_id: event.user_id,
-					user_email: event.user_email,
-					user_name: event.user_name,
-					original_subject: event.subject,
-					original_message: event.message,
-					item_index: index + 1,
-					total_items: feedbackItems.length,
-					analyzed_type: item.type,
-					analyzed_priority: item.priority,
-					reformatted_title: item.reformatted_title,
-					reformatted_content: item.reformatted_content,
-					submitted_at: event.submitted_at
-				})
+			// Separate feedback items by type
+			const helpRequests = feedbackItems.filter(item => item.type === 'help_request')
+			const featureRequests = feedbackItems.filter(item => item.type === 'feature_request')
+			const generalFeedback = feedbackItems.filter(item => item.type === 'general_feedback')
+
+			log.info('Routing feedback items', {
+				help_requests: helpRequests.length,
+				feature_requests: featureRequests.length,
+				general_feedback: generalFeedback.length
+			})
+
+			// Process help requests - club all together into one Freshdesk ticket
+			if (helpRequests.length > 0) {
+				try {
+					// Combine all help requests into a single first-person message
+					const combinedMessage = helpRequests
+						.map(req => req.reformatted_content)
+						.join(' Additionally, ')
+
+					const subject = helpRequests.length === 1
+						? helpRequests[0].reformatted_title
+						: 'Help needed: Multiple issues'
+
+					const success = await createFreshdeskTicket({
+						customerEmail: event.user_email,
+						customerName: event.user_name,
+						subject: subject,
+						message: combinedMessage
+					})
+
+					log.info('Help requests routed to Freshdesk', {
+						success,
+						count: helpRequests.length,
+						subject,
+						user_email: event.user_email
+					})
+				} catch (err) {
+					log.error(err as Error, 'Failed to create Freshdesk ticket', {
+						user_id: event.user_id,
+						count: helpRequests.length
+					})
+				}
+			}
+
+			// Process feature requests - create individual Linear triage issues
+			for (const feature of featureRequests) {
+				try {
+					const success = await createLinearTriageIssue({
+						title: feature.reformatted_title,
+						description: feature.reformatted_content,
+						priority: mapPriorityToLinear(feature.priority),
+						userId: event.user_id,
+						userEmail: event.user_email
+					})
+
+					log.info('Feature request routed to Linear', {
+						success,
+						title: feature.reformatted_title,
+						priority: feature.priority,
+						user_email: event.user_email
+					})
+				} catch (err) {
+					log.error(err as Error, 'Failed to create Linear issue', {
+						user_id: event.user_id,
+						title: feature.reformatted_title
+					})
+				}
+			}
+
+			// Process general feedback - store individually in database
+			for (const feedback of generalFeedback) {
+				try {
+					await db.insert(feedbackTable).values({
+						user_id: event.user_id,
+						title: feedback.reformatted_title,
+						content: feedback.reformatted_content,
+						priority: feedback.priority
+					})
+
+					log.info('General feedback stored in database', {
+						title: feedback.reformatted_title,
+						priority: feedback.priority,
+						user_id: event.user_id
+					})
+				} catch (err) {
+					log.error(err as Error, 'Failed to store general feedback', {
+						user_id: event.user_id,
+						title: feedback.reformatted_title
+					})
+				}
+			}
+
+			log.info('Feedback routing completed', {
+				user_id: event.user_id,
+				freshdesk_tickets: helpRequests.length > 0 ? 1 : 0,
+				linear_issues: featureRequests.length,
+				database_entries: generalFeedback.length
 			})
 
 		} catch (err) {

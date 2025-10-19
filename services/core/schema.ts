@@ -35,4 +35,27 @@ const countries = p.pgTable('countries', {
 // Define empty relations for countries
 const countriesRelations = relations(countries, () => ({}))
 
-export {waitlist, waitlistRelations, countries, countriesRelations}
+/**
+ * Feedback Table
+ * Stores general user feedback that doesn't require immediate action
+ * Feature requests go to Linear, help requests go to Help Scout
+ */
+const feedback = p.pgTable('feedback', {
+	// UUID primary key
+	id: p.uuid('id').defaultRandom().primaryKey(),
+	// User ID who submitted the feedback
+	user_id: p.varchar('user_id', {length: 255}).notNull(),
+	// Feedback title (AI-generated summary)
+	title: p.varchar('title', {length: 500}).notNull(),
+	// Feedback content (AI-reformatted)
+	content: p.text('content').notNull(),
+	// Priority level: low, medium, high, urgent
+	priority: p.varchar('priority', {length: 20}).notNull(),
+	// Created timestamp
+	created_at: p.timestamp('created_at', {withTimezone: true}).notNull().defaultNow()
+})
+
+// Define empty relations for feedback
+const feedbackRelations = relations(feedback, () => ({}))
+
+export {waitlist, waitlistRelations, countries, countriesRelations, feedback, feedbackRelations}
