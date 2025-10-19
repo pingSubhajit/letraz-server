@@ -1,5 +1,10 @@
 import {Topic} from 'encore.dev/pubsub'
-import {WaitlistAccessGrantedEvent, WaitlistSubmittedEvent, WaitlistLoopsSyncTriggeredEvent} from '@/services/core/interface'
+import {
+	UserFeedbackSubmittedEvent,
+	WaitlistAccessGrantedEvent,
+	WaitlistLoopsSyncTriggeredEvent,
+	WaitlistSubmittedEvent
+} from '@/services/core/interface'
 
 export const waitlistSubmitted = new Topic<WaitlistSubmittedEvent>('waitlist-submitted', {
 	deliveryGuarantee: 'at-least-once'
@@ -10,5 +15,9 @@ export const waitlistAccessGranted = new Topic<WaitlistAccessGrantedEvent>('wait
 })
 
 export const waitlistLoopsSyncTriggered = new Topic<WaitlistLoopsSyncTriggeredEvent>('waitlist-loops-sync-triggered', {
+	deliveryGuarantee: 'at-least-once'
+})
+
+export const userFeedbackSubmitted = new Topic<UserFeedbackSubmittedEvent>('user-feedback-submitted', {
 	deliveryGuarantee: 'at-least-once'
 })

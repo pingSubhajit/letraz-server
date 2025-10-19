@@ -11,18 +11,26 @@ import {
 	LoopsContact,
 	SeedWaitlistParams,
 	SeedWaitlistResponse,
+	SubmitUserFeedbackParams,
+	SubmitUserFeedbackResponse,
 	SyncWaitlistToLoopsResponse,
 	UpdateWaitlistParams,
 	WaitlistResponse
 } from '@/services/core/interface'
 import {db} from '@/services/core/database'
 import {countries, waitlist} from '@/services/core/schema'
-import {waitlistAccessGranted, waitlistLoopsSyncTriggered, waitlistSubmitted} from '@/services/core/topics'
+import {
+	userFeedbackSubmitted,
+	waitlistAccessGranted,
+	waitlistLoopsSyncTriggered,
+	waitlistSubmitted
+} from '@/services/core/topics'
 import {asc, count, desc, eq, ilike, inArray, sql} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {getPostHogPersonByEmail} from '@/services/analytics/posthog-management'
 import {findLoopsContact, needsSync, upsertLoopsContact, WAITLIST_MAILING_LISTS} from '@/services/core/loops'
 import log from 'encore.dev/log'
+import {getAuthData} from '~encore/internal/auth/auth'
 
 export const CoreService = {
 	addToWaitlist: async ({email, referrer}: AddToWaitlistParams): Promise<WaitlistResponse> => {
@@ -530,5 +538,46 @@ export const CoreService = {
 			failed: totalFailed,
 			failed_emails: failedEmails.length > 0 ? failedEmails.slice(0, 10) : [] // Log first 10 failed emails
 		})
+	},
+
+	/**
+	 * Submit user feedback
+	 * Publishes user feedback to the user-feedback-submitted topic with user details
+	 */
+	submitUserFeedback: async (
+		{subject, message}: SubmitUserFeedbackParams
+	): Promise<SubmitUserFeedbackResponse> => {
+		// Get authenticated user data
+		const authData = getAuthData()
+		if (!authData) {
+			throw new Error('Authentication required')
+		}
+
+		const {user} = authData
+		const userName = `${user.first_name} ${user.last_name}`.trim() || user.email
+
+		const submittedAt = new Date().toISOString()
+
+		// Publish the feedback event
+		await userFeedbackSubmitted.publish({
+			subject: subject || 'No subject',
+			message: message,
+			user_id: user.id,
+			user_name: userName,
+			user_email: user.email,
+			submitted_at: submittedAt
+		})
+
+		log.info('User feedback submitted', {
+			user_id: user.id,
+			user_email: user.email,
+			has_subject: !!subject
+		})
+
+		return {
+			success: true,
+			message: 'Feedback submitted successfully',
+			submitted_at: submittedAt
+		}
 	}
 }

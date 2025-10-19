@@ -274,3 +274,43 @@ export interface LoopsContactResponse {
 	/** Response message */
 	message?: string
 }
+
+/**
+ * Request parameters for submitting user feedback
+ */
+export interface SubmitUserFeedbackParams {
+	/** Optional subject line for the feedback */
+	subject?: string
+	/** The feedback content */
+	message: string
+}
+
+/**
+ * Response for submit user feedback operation
+ */
+export interface SubmitUserFeedbackResponse {
+	/** Success status */
+	success: boolean
+	/** Confirmation message */
+	message: string
+	/** Timestamp when feedback was submitted */
+	submitted_at: string
+}
+
+/**
+ * Event payload published when user feedback is submitted
+ */
+export interface UserFeedbackSubmittedEvent {
+	/** Feedback subject line */
+	subject: string
+	/** Feedback message content */
+	message: string
+	/** User ID who submitted the feedback */
+	user_id: string
+	/** User's name */
+	user_name: string
+	/** User's email address */
+	user_email: string
+	/** Timestamp when feedback was submitted */
+	submitted_at: string
+}

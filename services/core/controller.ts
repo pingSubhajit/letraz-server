@@ -16,6 +16,8 @@ import {
 	SeedCountriesResponse,
 	SeedWaitlistParams,
 	SeedWaitlistResponse,
+	SubmitUserFeedbackParams,
+	SubmitUserFeedbackResponse,
 	SyncWaitlistToLoopsResponse,
 	UpdateWaitlistParams,
 	WaitlistResponse
@@ -184,4 +186,19 @@ export const syncWaitlistToLoops = api({
 	method: 'POST', path: '/admin/waitlist/sync-to-loops', auth: true, expose: true
 }, async (): Promise<SyncWaitlistToLoopsResponse> => {
 	return CoreService.syncWaitlistToLoops()
+})
+
+/**
+ * Submit user feedback.
+ * Accepts an optional subject line and required feedback message from authenticated users.
+ * Publishes the feedback to a topic with user details including name, email, and ID.
+ * Returns a success response upon completion.
+ *
+ * Requires authentication - user must be logged in.
+ * Accessible at POST /feedback
+ */
+export const submitUserFeedback = api({
+	method: 'POST', path: '/feedback', auth: true, expose: true
+}, async (params: SubmitUserFeedbackParams): Promise<SubmitUserFeedbackResponse> => {
+	return CoreService.submitUserFeedback(params)
 })
