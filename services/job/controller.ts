@@ -1,6 +1,7 @@
 import {api, Query} from 'encore.dev/api'
 import {JobService} from '@/services/job/service'
 import type {
+	ClearDatabaseResponse,
 	CreateJobRequest,
 	DeleteJobRequest,
 	DeleteJobResponse,
@@ -98,3 +99,18 @@ export const scrapeJob = api(
 		return await JobService.scrapeJob(params)
 	}
 )
+
+/**
+ * Clear job service database.
+ * Deletes all data from jobs and processes tables.
+ *
+ * Internal endpoint for use by admin service.
+ * Accessible at DELETE /job/database/clear
+ *
+ * WARNING: This is a destructive operation and cannot be undone
+ */
+export const clearDatabase = api({
+	method: 'DELETE', path: '/job/database/clear'
+}, async (): Promise<ClearDatabaseResponse> => {
+	return JobService.clearDatabase()
+})

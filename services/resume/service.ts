@@ -31,6 +31,7 @@ import {ProjectHelpers} from '@/services/resume/services/project.service'
 import {CertificationHelpers} from '@/services/resume/services/certification.service'
 import {SkillHelpers} from '@/services/resume/services/skill.service'
 import {
+	ClearDatabaseResponse,
 	DeleteResumeParams,
 	ExportResumeParams,
 	ExportResumeResponse,
@@ -1149,6 +1150,104 @@ export const ResumeService = {
 		})
 
 		return deletedResumes.length
+	},
+
+	/**
+	 * Clear resume service database
+	 * Deletes all data from all resume-related tables
+	 *
+	 * Tables cleared (in order to handle foreign key constraints):
+	 * - proficiencies (references skills and resume_sections)
+	 * - project_skills (references projects and skills)
+	 * - certifications (references resume_sections)
+	 * - projects (references resume_sections)
+	 * - experiences (references resume_sections)
+	 * - educations (references resume_sections)
+	 * - resume_sections (references resumes)
+	 * - resumes (references resume_processes)
+	 * - skill_aliases (references skills)
+	 * - skills (standalone master table)
+	 * - resume_processes (standalone process tracking)
+	 *
+	 * WARNING: This is a destructive operation and cannot be undone
+	 */
+	clearDatabase: async (): Promise<ClearDatabaseResponse> => {
+		const timestamp = new Date().toISOString()
+		const clearedTables: string[] = []
+
+		log.info('Starting resume database clearing operation')
+
+		try {
+			// Clear in order to respect foreign key constraints
+
+			// 1. Clear proficiencies (references skills and resume_sections)
+			await db.delete(proficiencies)
+			clearedTables.push('proficiencies')
+			log.info('Cleared proficiencies table')
+
+			// 2. Clear project_skills (references projects and skills)
+			await db.delete(projectSkills)
+			clearedTables.push('project_skills')
+			log.info('Cleared project_skills table')
+
+			// 3. Clear certifications (references resume_sections)
+			await db.delete(certifications)
+			clearedTables.push('certifications')
+			log.info('Cleared certifications table')
+
+			// 4. Clear projects (references resume_sections)
+			await db.delete(projects)
+			clearedTables.push('projects')
+			log.info('Cleared projects table')
+
+			// 5. Clear experiences (references resume_sections)
+			await db.delete(experiences)
+			clearedTables.push('experiences')
+			log.info('Cleared experiences table')
+
+			// 6. Clear educations (references resume_sections)
+			await db.delete(educations)
+			clearedTables.push('educations')
+			log.info('Cleared educations table')
+
+			// 7. Clear resume_sections (references resumes)
+			await db.delete(resumeSections)
+			clearedTables.push('resume_sections')
+			log.info('Cleared resume_sections table')
+
+			// 8. Clear resumes (references resume_processes)
+			await db.delete(resumes)
+			clearedTables.push('resumes')
+			log.info('Cleared resumes table')
+
+			// 9. Clear skills table (master table, referenced by many)
+			await db.delete(skills)
+			clearedTables.push('skills')
+			log.info('Cleared skills table')
+
+			// 10. Clear resume_processes (standalone process tracking)
+			await db.delete(resumeProcesses)
+			clearedTables.push('resume_processes')
+			log.info('Cleared resume_processes table')
+
+			log.info('Resume database clearing operation completed', {
+				cleared_tables: clearedTables,
+				timestamp
+			})
+
+			return {
+				success: true,
+				message: `Successfully cleared ${clearedTables.length} table(s) from resume database`,
+				cleared_tables: clearedTables,
+				timestamp
+			}
+		} catch (error) {
+			log.error(error as Error, 'Failed to clear resume database', {
+				cleared_tables: clearedTables,
+				timestamp
+			})
+			throw error
+		}
 	}
 
 }

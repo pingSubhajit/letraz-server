@@ -1,8 +1,9 @@
 import {eq} from 'drizzle-orm'
-import type {CreateUserInput, UpdateUserInput, User} from './interface'
+import type {ClearDatabaseResponse, CreateUserInput, UpdateUserInput, User} from './interface'
 import {APIError} from 'encore.dev/api'
 import {users} from '@/services/identity/schema'
 import {db} from '@/services/identity/database'
+import log from 'encore.dev/log'
 
 /**
  * Helper Functions
@@ -183,5 +184,43 @@ export const IdentityService = {
 		}
 
 		return parts.join(' ')
+	},
+
+	/**
+	 * Clear identity service database
+	 * Deletes all data from users table
+	 * 
+	 * WARNING: This is a destructive operation and cannot be undone
+	 */
+	clearDatabase: async (): Promise<ClearDatabaseResponse> => {
+		const timestamp = new Date().toISOString()
+		const clearedTables: string[] = []
+
+		log.info('Starting identity database clearing operation')
+
+		try {
+			// Clear users table
+			await db.delete(users)
+			clearedTables.push('users')
+			log.info('Cleared users table')
+
+			log.info('Identity database clearing operation completed', {
+				cleared_tables: clearedTables,
+				timestamp
+			})
+
+			return {
+				success: true,
+				message: `Successfully cleared ${clearedTables.length} table(s) from identity database`,
+				cleared_tables: clearedTables,
+				timestamp
+			}
+		} catch (error) {
+			log.error(error as Error, 'Failed to clear identity database', {
+				cleared_tables: clearedTables,
+				timestamp
+			})
+			throw error
+		}
 	}
 }

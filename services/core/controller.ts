@@ -6,6 +6,7 @@ import {
 	AllWaitlistResponse,
 	BulkUpdateWaitlistParams,
 	BulkUpdateWaitlistResponse,
+	ClearDatabaseResponse,
 	Country,
 	CreateCountryParams,
 	GetCountryParams,
@@ -201,4 +202,20 @@ export const submitUserFeedback = api({
 	method: 'POST', path: '/feedback', auth: true, expose: true
 }, async (params: SubmitUserFeedbackParams): Promise<SubmitUserFeedbackResponse> => {
 	return CoreService.submitUserFeedback(params)
+})
+
+/**
+ * Clear core service database.
+ * Deletes all data from feedback table.
+ * Preserves waitlist and countries tables.
+ *
+ * Internal endpoint for use by admin service.
+ * Accessible at DELETE /core/database/clear
+ *
+ * WARNING: This is a destructive operation and cannot be undone
+ */
+export const clearDatabase = api({
+	method: 'DELETE', path: '/core/database/clear'
+}, async (): Promise<ClearDatabaseResponse> => {
+	return CoreService.clearDatabase()
 })

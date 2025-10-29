@@ -6,6 +6,7 @@ import type {
 	CertificationResponse,
 	CertificationUpdateRequest,
 	CertificationWithIdParams,
+	ClearDatabaseResponse,
 	DeleteResumeParams,
 	EducationCreateRequest,
 	EducationPathParams,
@@ -540,3 +541,18 @@ export const getResumeByIdAdmin = api(
 		return ResumeService.getResumeById({id})
 	}
 )
+
+/**
+ * Clear resume service database.
+ * Deletes all data from all resume-related tables.
+ *
+ * Internal endpoint for use by admin service.
+ * Accessible at DELETE /resume/database/clear
+ *
+ * WARNING: This is a destructive operation and cannot be undone
+ */
+export const clearDatabase = api({
+	method: 'DELETE', path: '/resume/database/clear'
+}, async (): Promise<ClearDatabaseResponse> => {
+	return ResumeService.clearDatabase()
+})

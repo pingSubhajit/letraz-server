@@ -89,3 +89,17 @@ export interface UpdateProfileRequest {
 }
 
 export interface UserCreatedEvent extends User {}
+
+/**
+ * Response for clear database operation
+ */
+export interface ClearDatabaseResponse {
+	/** Success status */
+	success: boolean
+	/** Message describing the operation result */
+	message: string
+	/** Tables that were cleared */
+	cleared_tables: string[]
+	/** Timestamp of the operation */
+	timestamp: string
+}

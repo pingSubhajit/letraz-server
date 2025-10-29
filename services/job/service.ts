@@ -1,6 +1,7 @@
 import {db} from '@/services/job/database'
 import {jobs, JobStatus, processes, ProcessStatus} from '@/services/job/schema'
 import type {
+	ClearDatabaseResponse,
 	CreateJobRequest,
 	Job,
 	JobResponse,
@@ -16,6 +17,7 @@ import type {
 import {and, count, desc, eq, like} from 'drizzle-orm'
 import {APIError} from 'encore.dev/api'
 import {jobScrapeTriggered} from '@/services/job/topics'
+import log from 'encore.dev/log'
 
 /**
  * Helper function to validate if a string is a valid URL
@@ -330,6 +332,49 @@ export const JobService = {
 		await publishScrapeEvent(job.id, process.id, jobUrl, description)
 
 		return {job, process}
+	},
+
+	/**
+	 * Clear job service database
+	 * Deletes all data from jobs and processes tables
+	 *
+	 * WARNING: This is a destructive operation and cannot be undone
+	 */
+	clearDatabase: async (): Promise<ClearDatabaseResponse> => {
+		const timestamp = new Date().toISOString()
+		const clearedTables: string[] = []
+
+		log.info('Starting job database clearing operation')
+
+		try {
+			// Clear jobs table (CASCADE will delete related processes due to foreign key)
+			await db.delete(jobs)
+			clearedTables.push('jobs')
+			log.info('Cleared jobs table')
+
+			// Clear processes table
+			await db.delete(processes)
+			clearedTables.push('processes')
+			log.info('Cleared processes table')
+
+			log.info('Job database clearing operation completed', {
+				cleared_tables: clearedTables,
+				timestamp
+			})
+
+			return {
+				success: true,
+				message: `Successfully cleared ${clearedTables.length} table(s) from job database`,
+				cleared_tables: clearedTables,
+				timestamp
+			}
+		} catch (error) {
+			log.error(error as Error, 'Failed to clear job database', {
+				cleared_tables: clearedTables,
+				timestamp
+			})
+			throw error
+		}
 	}
 }
 

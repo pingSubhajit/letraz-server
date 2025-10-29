@@ -1,7 +1,7 @@
 import {api, APIError} from 'encore.dev/api'
 import {getAuthData} from '~encore/auth'
 import type {AuthData} from '@/services/identity/auth'
-import type {UpdateProfileRequest, User} from '@/services/identity/interface'
+import type {ClearDatabaseResponse, UpdateProfileRequest, User} from '@/services/identity/interface'
 import {IdentityService} from '@/services/identity/service'
 
 /**
@@ -81,3 +81,18 @@ export const getUserById = api(
 		return user
 	}
 )
+
+/**
+ * Clear identity service database.
+ * Deletes all data from users table.
+ * 
+ * Internal endpoint for use by admin service.
+ * Accessible at DELETE /identity/database/clear
+ * 
+ * WARNING: This is a destructive operation and cannot be undone
+ */
+export const clearDatabase = api({
+	method: 'DELETE', path: '/identity/database/clear'
+}, async (): Promise<ClearDatabaseResponse> => {
+	return IdentityService.clearDatabase()
+})

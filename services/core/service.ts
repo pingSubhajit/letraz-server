@@ -4,6 +4,7 @@ import {
 	AllWaitlistResponse,
 	BulkUpdateWaitlistParams,
 	BulkUpdateWaitlistResponse,
+	ClearDatabaseResponse,
 	Country,
 	CreateCountryParams,
 	ListCountriesParams,
@@ -18,7 +19,7 @@ import {
 	WaitlistResponse
 } from '@/services/core/interface'
 import {db} from '@/services/core/database'
-import {countries, waitlist} from '@/services/core/schema'
+import {countries, feedback as feedbackTable, waitlist} from '@/services/core/schema'
 import {
 	userFeedbackSubmitted,
 	waitlistAccessGranted,
@@ -599,6 +600,45 @@ export const CoreService = {
 			success: true,
 			message: 'Feedback submitted successfully',
 			submitted_at: submittedAt
+		}
+	},
+
+	/**
+	 * Clear core service database
+	 * Deletes all data from feedback table
+	 * Preserves waitlist and countries tables
+	 *
+	 * WARNING: This is a destructive operation and cannot be undone
+	 */
+	clearDatabase: async (): Promise<ClearDatabaseResponse> => {
+		const timestamp = new Date().toISOString()
+		const clearedTables: string[] = []
+
+		log.info('Starting core database clearing operation')
+
+		try {
+			// Clear feedback table
+			await db.delete(feedbackTable)
+			clearedTables.push('feedback')
+			log.info('Cleared feedback table')
+
+			log.info('Core database clearing operation completed', {
+				cleared_tables: clearedTables,
+				timestamp
+			})
+
+			return {
+				success: true,
+				message: `Successfully cleared ${clearedTables.length} table(s) from core database`,
+				cleared_tables: clearedTables,
+				timestamp
+			}
+		} catch (error) {
+			log.error(error as Error, 'Failed to clear core database', {
+				cleared_tables: clearedTables,
+				timestamp
+			})
+			throw error
 		}
 	}
 }
