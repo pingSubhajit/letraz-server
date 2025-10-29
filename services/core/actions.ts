@@ -12,18 +12,18 @@ import {createLinearTriageIssue, mapPriorityToLinear} from '@/services/core/line
 import {db} from '@/services/core/database'
 import {feedback as feedbackTable} from '@/services/core/schema'
 
-const removeFromWaitlistEventListener = new Subscription(userCreated, 'remove-user-from-waitlist', {
+const grantWaitlistAccessEventListener = new Subscription(userCreated, 'grant-waitlist-access', {
 	handler: async (event) => {
 		try {
-			addBreadcrumb('Removing user from waitlist', {email: event.email}, 'pubsub')
-			await CoreService.removeFromWaitlist(event.email)
+			addBreadcrumb('Granting waitlist access to user', {email: event.email}, 'pubsub')
+			await CoreService.grantWaitlistAccessByEmail(event.email)
 		} catch (err) {
-			log.error(err as Error, 'Failed to remove user from waitlist', {email: event.email})
+			log.error(err as Error, 'Failed to grant waitlist access', {email: event.email})
 
 			// Report to Sentry for monitoring
 			captureException(err, {
 				tags: {
-					operation: 'waitlist-removal',
+					operation: 'waitlist-access-grant',
 					event_type: 'user-created'
 				},
 				extra: {

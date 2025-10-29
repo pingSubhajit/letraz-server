@@ -66,6 +66,27 @@ export const CoreService = {
 	},
 
 	/**
+	 * Grant access to a waitlist entry by email
+	 * Sets has_access to true for the user without removing them from the waitlist
+	 * Silently succeeds if the email is not found in the waitlist
+	 */
+	grantWaitlistAccessByEmail: async (email: string): Promise<void> => {
+		// Check if entry exists
+		const [existingEntry] = await db.select().from(waitlist).where(eq(waitlist.email, email)).limit(1)
+
+		// If entry doesn't exist or already has access, nothing to do
+		if (!existingEntry || existingEntry.has_access) {
+			return
+		}
+
+		// Update has_access to true
+		await db
+			.update(waitlist)
+			.set({has_access: true})
+			.where(eq(waitlist.email, email))
+	},
+
+	/**
 	 * Update a waitlist entry by ID
 	 * When has_access is changed from false to true, emits waitlist-access-granted event
 	 */
