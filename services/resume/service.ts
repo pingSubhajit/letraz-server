@@ -47,7 +47,7 @@ import {
 import type {Country} from '@/services/core/interface'
 import {AuthData} from '@/services/identity/auth'
 import {IdentityService} from '@/services/identity/service'
-import {and, desc, eq, inArray, max} from 'drizzle-orm'
+import {and, desc, eq, inArray, max, ne} from 'drizzle-orm'
 import {core, job} from '~encore/clients'
 import {JobStatus} from '@/services/job/schema'
 import log from 'encore.dev/log'
@@ -206,7 +206,7 @@ export const ResumeService = {
 		const userId = this.getAuthenticatedUserId()
 
 		// Build query filters
-		const filters = [eq(resumes.user_id, userId)]
+		const filters = [eq(resumes.user_id, userId), ne(resumes.status, ResumeStatus.Failure)]
 		if (status) {
 			filters.push(eq(resumes.status, status))
 		}
