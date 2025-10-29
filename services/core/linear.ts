@@ -64,7 +64,7 @@ export const createLinearTriageIssue = async (
 	try {
 		const apiKey = linearApiKey()
 		const teamId = linearTeamId()
-		
+
 		if (!apiKey) {
 			log.warn('Linear API key not configured; issue creation disabled')
 			return false
@@ -84,8 +84,10 @@ export const createLinearTriageIssue = async (
 		// Linear GraphQL API endpoint
 		const url = 'https://api.linear.app/graphql'
 
-		// Prepare GraphQL mutation
-		// Include user information in the description
+		/*
+		 * Prepare GraphQL mutation
+		 * Include user information in the description
+		 */
 		const enrichedDescription = `${params.description}
 
 ---

@@ -85,10 +85,10 @@ export const getUserById = api(
 /**
  * Clear identity service database.
  * Deletes all data from users table.
- * 
+ *
  * Internal endpoint for use by admin service.
  * Accessible at DELETE /identity/database/clear
- * 
+ *
  * WARNING: This is a destructive operation and cannot be undone
  */
 export const clearDatabase = api({

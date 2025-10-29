@@ -189,7 +189,7 @@ export const IdentityService = {
 	/**
 	 * Clear identity service database
 	 * Deletes all data from users table
-	 * 
+	 *
 	 * WARNING: This is a destructive operation and cannot be undone
 	 */
 	clearDatabase: async (): Promise<ClearDatabaseResponse> => {
