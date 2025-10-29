@@ -9,17 +9,10 @@
 import {generateObject} from 'ai'
 import {z} from 'zod'
 import log from 'encore.dev/log'
-import {getAIModel, AI_CONFIG} from './ai-provider.config'
+import {AI_CONFIG, getAIModel} from './ai-provider.config'
 import type {Job} from '@/services/job/interface'
-import type {
-	ResumeResponse,
-	Experience,
-	Education,
-	Project,
-	Skill,
-	Certification
-} from '@/services/resume/interface'
-import {ResumeSectionType, EmploymentType, ProficiencyLevel} from '@/services/resume/schema'
+import type {ResumeResponse} from '@/services/resume/interface'
+import {ResumeSectionType} from '@/services/resume/schema'
 
 /**
  * Zod Schemas for Section Generation
@@ -42,7 +35,7 @@ const ExperienceSchema = z.object({
 	description: z
 		.string()
 		.describe(
-			'Tailored description emphasizing relevant achievements and responsibilities for the target job. Use HTML formatting with <ul><li> for bullet points.'
+			'Tailored description emphasizing relevant achievements and responsibilities for the target job. Use HTML bullet list with TipTap format: <ul class="list-node"><li><p class="text-node">First point</p></li><li><p class="text-node">Second point</p></li></ul>'
 		)
 })
 
@@ -60,7 +53,7 @@ const EducationSchema = z.object({
 	description: z
 		.string()
 		.nullable()
-		.describe('Relevant coursework, projects, or achievements related to target job')
+		.describe('Relevant coursework, projects, or achievements related to target job. Format as HTML bullet list with TipTap format: <ul class="list-node"><li><p class="text-node">Point</p></li></ul>. Keep null if no description in original data.')
 })
 
 // Skill Schema
@@ -77,7 +70,7 @@ const SkillSchema = z.object({
 const ProjectSchema = z.object({
 	name: z.string().describe('Project name'),
 	category: z.string().nullable().describe('Project category'),
-	description: z.string().nullable().describe('Tailored project description highlighting relevance to job'),
+	description: z.string().nullable().describe('Tailored project description highlighting relevance to job as HTML bullet list with TipTap format: <ul class="list-node"><li><p class="text-node">Point</p></li></ul>'),
 	role: z.string().nullable().describe('Your role in the project'),
 	github_url: z.string().nullable().describe('GitHub repository URL'),
 	live_url: z.string().nullable().describe('Live demo URL'),
@@ -272,7 +265,9 @@ ${JSON.stringify(existingExperiences, null, 2)}
 - Rewrite descriptions to highlight job-relevant skills and achievements
 - Use strong action verbs and quantify results where possible
 - Maintain truthfulness - only use information from existing data
-- Use HTML formatting with <ul><li> for bullet points in descriptions
+- Format descriptions using TipTap HTML structure: <ul class="list-node"><li><p class="text-node">First point</p></li><li><p class="text-node">Second point</p></li></ul>
+- Each bullet point MUST be wrapped in <li><p class="text-node">...</p></li> tags
+- All bullet points MUST be wrapped in a single <ul class="list-node"> tag
 - Keep all dates, companies, and titles accurate
 - If no relevant experiences exist, return empty array`
 
@@ -300,9 +295,12 @@ ${JSON.stringify(existingExperiences, null, 2)}
 ${JSON.stringify(existingEducations, null, 2)}
 
 **INSTRUCTIONS:**
-- Emphasize relevant coursework, specializations, or academic projects
 - Keep all institutions, degrees, and dates accurate
-- Only add descriptions that are plausible based on the field of study
+- CRITICAL: If an education entry has no description (null), keep it null - DO NOT fabricate or add descriptions
+- Only modify existing descriptions to make them more relevant to the job
+- If modifying an existing description, format using TipTap HTML structure: <ul class="list-node"><li><p class="text-node">First point</p></li><li><p class="text-node">Second point</p></li></ul>
+- Each bullet point MUST be wrapped in <li><p class="text-node">...</p></li> tags
+- All bullet points MUST be wrapped in a single <ul class="list-node"> tag
 - If no relevant education exists, return the entries as-is`
 
 		const result = await generateObject({
@@ -362,6 +360,9 @@ ${JSON.stringify(existingProjects, null, 2)}
 - Rewrite descriptions to highlight job-relevant technologies and achievements
 - Keep project names, URLs, and dates accurate
 - Only use information from existing projects
+- Format descriptions using TipTap HTML structure: <ul class="list-node"><li><p class="text-node">First point</p></li><li><p class="text-node">Second point</p></li></ul>
+- Each bullet point MUST be wrapped in <li><p class="text-node">...</p></li> tags
+- All bullet points MUST be wrapped in a single <ul class="list-node"> tag
 - Emphasize technical skills that match job requirements
 - If no projects exist, return empty array`
 
