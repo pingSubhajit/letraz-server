@@ -14,19 +14,34 @@ const jobScrapeTriggeredEventListener = new Subscription(jobScrapeTriggered, 'ex
 			log.info('Starting job extraction', {
 				job_id: event.job_id,
 				process_id: event.process_id,
-				job_url: event.job_url
+				job_url: event.job_url,
+				hasDescription: !!event.description,
+				descriptionLength: event.description?.length
 			})
 
-			// Validate job URL exists
-			if (!event.job_url) {
-				throw new Error('No job URL provided in event')
+			let extractedJobData
+
+			// Check if we have a description instead of a URL
+			if (event.description && !event.job_url) {
+				// Direct LLM processing for description strings
+				log.info('Processing job description directly with LLM', {
+					job_id: event.job_id,
+					descriptionLength: event.description.length
+				})
+				extractedJobData = await jobExtractor.extractJobFromDescription(event.description)
+			} else if (event.job_url) {
+				// URL-based extraction using scraping
+				log.info('Processing job URL with scraping', {
+					job_id: event.job_id,
+					job_url: event.job_url
+				})
+				extractedJobData = await jobExtractor.extractJob(event.job_url, {
+					timeout: 60000, // 60 seconds timeout
+					retries: 2
+				})
+			} else {
+				throw new Error('Either job URL or description must be provided')
 			}
-
-			// Extract job data using the new simplified flow
-			const extractedJobData = await jobExtractor.extractJob(event.job_url, {
-				timeout: 60000, // 60 seconds timeout
-				retries: 2
-			})
 
 			// Prepare job data for database update
 			const jobData = {

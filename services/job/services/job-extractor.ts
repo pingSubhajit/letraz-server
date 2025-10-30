@@ -140,6 +140,19 @@ export class JobExtractor {
 	}
 
 	/**
+	 * Extract job information directly from a text description using LLM
+	 * Skips scraping stage and processes the description directly
+	 */
+	async extractJobFromDescription(description: string): Promise<JobExtractionResult> {
+		log.info('Starting job extraction from description', {
+			descriptionLength: description.length
+		})
+
+		// Use LLM parser directly to extract job information from the description
+		return await this.llmParser.parseJobContent(description, '', 'markdown')
+	}
+
+	/**
 	 * Extract LinkedIn job using BrightData API
 	 */
 	private async extractLinkedInJob(url: string, options: JobExtractionOptions): Promise<JobExtractionResult> {
