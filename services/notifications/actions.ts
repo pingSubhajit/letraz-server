@@ -205,7 +205,8 @@ const resumeTailoringSuccessEventListener = new Subscription(resumeTailoringSucc
 					job_id: event.job_id,
 					cta_url: `${CLIENT_URL}/app/craft/resumes/${event.resume_id}`,
 					job_title: job?.title !== '<EXTRACTION_FAILED>' ? job.title : null,
-					company_name: job?.company_name !== '<EXTRACTION_FAILED>' ? job.company_name : null
+					company_name: job?.company_name !== '<EXTRACTION_FAILED>' ? job.company_name : null,
+					job_url: job?.job_url!== '<EXTRACTION_FAILED>' ? job.job_url : null
 				}
 			})
 
@@ -216,7 +217,8 @@ const resumeTailoringSuccessEventListener = new Subscription(resumeTailoringSucc
 				user_id: event.user_id,
 				user_email: user.email,
 				job_title: job?.title,
-				company_name: job?.company_name
+				company_name: job?.company_name,
+				job_url: job?.job_url
 			})
 		} catch (err) {
 			log.error(err as Error, 'Failed to process resume-tailoring-success event', {
